@@ -1,117 +1,121 @@
 # C++26 Systems Stack
 
-[![C++26](https://img.shields.io/badge/C%2B%2B-26-blue.svg)](#language--toolchain)
-[![CMake](https://img.shields.io/badge/CMake-3.28%2B-green.svg)](#build)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#dependencies)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-**Integration laboratory for a modern C++26 systems ecosystem** — async I/O, HTTP/WebSocket, task graphs, data-parallel runtimes, sender/receiver composition, high-performance JSON, schema/RPC, optional service foundations (Folly, HPX), portable **low-latency primitives** under `include/ll/`, and **industry libraries** (hwloc, FlatBuffers, SBE, struct_pack, moodycamel, Boost.Lockfree, Folly PCQ, std::pmr, mimalloc, jemalloc, HdrHistogram, Google Benchmark; DPDK/Onload detect + stub RX).
-
-This repository is **not** a toy “hello world” collection. It is a **buildable reference stack**: CMake-wired dependencies, executable integration binary, Catch2/GTest suites, microbenchmarks, architecture guides, and a six-layer low-latency **blueprint audit**.
+Buildable C++26 integration stack for systems programming: async I/O, parallelism,
+JSON/RPC, portable low-latency primitives (`include/ll/`), and optional industry
+libraries. CMake 3.28+, Catch2/GTest, examples, and documentation under `docs/`.
 
 | | |
 |--|--|
-| **Language** | ISO C++26 (`CMAKE_CXX_STANDARD 26`) |
-| **Build** | CMake 3.28+ · Make wrapper · **CMakePresets** (CLion) |
-| **Package sources** | Homebrew (base + industry) · FetchContent (`stdexec`, moodycamel) · optional HPX |
-| **Low-latency core** | `ll::*` — SPSC, arena/pmr, HDR histogram, SBE-style wire, TSC, affinity |
-| **Industry optional** | hwloc · FlatBuffers · SBE · struct_pack · mimalloc · jemalloc · Folly PCQ · Benchmark · DPDK/Onload detect |
-| **IDE** | CLion: preset `clion-debug` + target `ide_index` — see [docs/clion.md](docs/clion.md) |
-| **Monorepo** | Submodule of private [`Dmdv/cpp_agents_benchmark`](https://github.com/Dmdv/cpp_agents_benchmark) as `systems_stack/` |
+| Language | C++26 |
+| Build | CMake ≥ 3.28, Make, optional Ninja / CMake Presets |
+| Platforms | macOS (arm64 / x86_64), Linux (x86_64 / aarch64) |
+| License | [MIT](LICENSE) |
+| Monorepo | Submodule of [cpp_agents_benchmark](https://github.com/Dmdv/cpp_agents_benchmark) as `systems_stack/` |
 
 ---
 
-## Primary focus (which layer of the stack?)
+## Contents
 
-Audited against the industry low-latency checklist (hardware/OS → kernel bypass → memory → concurrency → compiler → telemetry):
+1. [Quick start](#quick-start)
+2. [What this repository provides](#what-this-repository-provides)
+3. [Documentation index](#documentation-index)
+4. [Repository layout](#repository-layout)
+5. [Components](#components)
+6. [Dependencies](#dependencies)
+7. [Build](#build)
+8. [Tests and examples](#tests-and-examples)
+9. [Design notes](#design-notes)
+10. [Related repositories](#related-repositories)
+11. [License](#license)
 
-> **Center of gravity: concurrency + memory + C++26 library mesh**, wired to **industry standards**  
-> (`ll`/Boost/moodycamel queues, std::pmr arenas, hwloc, FlatBuffers/SBE-style, HDR + Google Benchmark)  
-> Kernel bypass (DPDK/Onload) remains a documented envelope — not a NIC driver product.
+---
 
-| Rank | Layer | Status in this repo |
-|------|--------|---------------------|
-| **1** | §4 Concurrency + §3 Memory | **SHIPPED** — `ll` SPSC, Boost.Lockfree, moodycamel*, pmr/arena, cache lines |
-| **2** | C++26 library mesh (I/O, parse, schedule, RPC) | **SHIPPED** — full integration binary + suites |
-| **3** | §6 Telemetry | **SHIPPED** — TSC, portable HDR, **HdrHistogram_c**, Google Benchmark* |
-| **4** | §1 / §2 portable wire | **SHIPPED** — **SBE codegen**, hwloc*, FlatBuffers*, numa/uring APIs |
-| **5** | §2 Kernel bypass drivers | **Contract + lab** — stub RX shipped; DPDK/Onload not linked |
-
-\*auto-enabled when the package is installed (`make install-industry`).
-
-### Roadmap (recommended order) — implemented
-
-| # | Investment | Status | Tutorial |
-|---|------------|--------|----------|
-| 1 | Real Logic **SBE codegen** for production schemas | **Done** | [sbe-codegen.md](docs/tutorials/sbe-codegen.md) |
-| 2 | Linux **numa + io_uring** demos + CI | **Done** | [linux-numa-uring.md](docs/tutorials/linux-numa-uring.md) |
-| 3 | **HdrHistogram_c** beside portable HDR | **Done** | [hdrhistogram-c.md](docs/tutorials/hdrhistogram-c.md) |
-| 4 | **DPDK / Onload** dedicated NIC lab | **Done** (API + runbook; no vendor SDK) | [kernel-bypass-lab.md](docs/tutorials/kernel-bypass-lab.md) |
+## Quick start
 
 ```bash
-./scripts/generate_sbe.sh          # regenerate SBE C++ from XML (Java)
-ctest --test-dir build -R roadmap  # SBE · numa · uring · hdr_c · bypass
-./build/example_sbe_codegen
-./build/example_numa_uring
-./build/example_hdr_c
-./build/example_kernel_bypass
+# Dependencies (macOS / Homebrew)
+brew install cmake ninja fmt spdlog tbb asio boost taskflow \
+  nlohmann-json simdjson eigen protobuf grpc range-v3 abseil catch2 googletest
+make install-industry   # hwloc flatbuffers google-benchmark mimalloc jemalloc
+
+# Build and test
+make                    # or: make ninja
+make run                # ./build/lib_smoke
+make examples
 ```
 
-Full checklist: [`docs/blueprint/AUDIT.md`](docs/blueprint/AUDIT.md) · industry map: [`docs/blueprint/07-industry-libraries.md`](docs/blueprint/07-industry-libraries.md) · tutorials: [`docs/tutorials/`](docs/tutorials/).
+CLion: open the repo root, enable preset `clion-debug`, build target `ide_index`.  
+See [docs/clion.md](docs/clion.md).
+
 ---
 
-## Ecosystem map
+## What this repository provides
 
-```mermaid
-flowchart TB
-  subgraph IO["I/O & wire protocols"]
-    ASIO[Asio · timers / sockets / executors]
-    BEAST[Boost.Beast · HTTP / WebSocket]
-    GRPC[gRPC · RPC transport]
-    PB[Protocol Buffers · schemas]
-  end
+| Area | Description |
+|------|-------------|
+| Library mesh | Asio, Beast, Taskflow, oneTBB, stdexec, simdjson, protobuf/gRPC, fmt, spdlog, Abseil, Eigen, range-v3 |
+| Low-latency core | Header-only `ll::*`: SPSC, arenas, pmr, HDR, SBE, affinity, TSC, NUMA/uring APIs, bypass contract |
+| Industry optional | hwloc, FlatBuffers, struct_pack, moodycamel, Folly PCQ, mimalloc, jemalloc, HdrHistogram_c, Google Benchmark; DPDK/Onload detect when installed |
+| Validation | `lib_smoke`, Catch2/GTest suites, examples, optional microbenchmarks |
+| Docs | Six-layer blueprint, industry audit map, tutorials (build, tooling, SBE, numa/uring, bypass) |
 
-  subgraph PARSE["Parsing & data"]
-    SIMD[simdjson · DOM / on-demand]
-    NLOH[nlohmann-json · ergonomic JSON]
-    EIGEN[Eigen · dense linear algebra]
-  end
+**Focus:** concurrency and memory primitives plus a modern C++ library mesh.  
+Kernel-bypass **drivers** (DPDK / OpenOnload) are detected when present; CI uses a stub RX path. Full status: [docs/blueprint/AUDIT.md](docs/blueprint/AUDIT.md).
 
-  subgraph EXEC["Execution & parallelism"]
-    TF[Taskflow · explicit DAGs]
-    TBB[oneTBB · algorithms / containers]
-    STDEX[stdexec · P2300 senders/receivers]
-    HPX[HPX · optional parallel runtime]
-  end
+---
 
-  subgraph UTIL["Foundation utilities"]
-    FMT[fmt · formatting]
-    SPD[spdlog · logging]
-    ABSL[Abseil · strings / containers]
-    RV[range-v3 · views]
-    FOLLY[Folly · optional service utilities]
-  end
+## Documentation index
 
-  BEAST --> ASIO
-  GRPC --> PB
-  ASIO --> PARSE
-  BEAST --> PARSE
-  PARSE --> EXEC
-  EXEC --> UTIL
-```
+### Blueprint (low-latency layers)
 
-### Suggested composition for a market-data / services path
+| Doc | Topic |
+|-----|--------|
+| [docs/blueprint/README.md](docs/blueprint/README.md) | Blueprint overview and layer index |
+| [docs/blueprint/LOW_LATENCY_STACK.md](docs/blueprint/LOW_LATENCY_STACK.md) | Stack narrative |
+| [docs/blueprint/AUDIT.md](docs/blueprint/AUDIT.md) | Checklist: SHIPPED / OPTIONAL / GAP |
+| [docs/blueprint/01-hardware-os.md](docs/blueprint/01-hardware-os.md) | §1 Hardware & OS (pinning, NUMA, isolation) |
+| [docs/blueprint/02-network-ingress.md](docs/blueprint/02-network-ingress.md) | §2 Network ingress & encoding |
+| [docs/blueprint/03-memory.md](docs/blueprint/03-memory.md) | §3 Memory & cache locality |
+| [docs/blueprint/04-concurrency.md](docs/blueprint/04-concurrency.md) | §4 Lock-free concurrency |
+| [docs/blueprint/05-compiler.md](docs/blueprint/05-compiler.md) | §5 Compiler & language |
+| [docs/blueprint/06-telemetry.md](docs/blueprint/06-telemetry.md) | §6 Benchmarking & telemetry |
+| [docs/blueprint/07-industry-libraries.md](docs/blueprint/07-industry-libraries.md) | Industry library map by layer |
 
-```mermaid
-flowchart LR
-  W[WebSocket / HTTP<br/>Beast + Asio] --> J[JSON ticks<br/>simdjson]
-  W --> S[Internal messages<br/>protobuf]
-  J --> P[Pipeline stages<br/>Taskflow]
-  S --> P
-  P --> B[Batch compute<br/>TBB / Eigen]
-  P --> R[RPC egress<br/>gRPC]
-  P --> C[In-process cache<br/>F14 / Abseil]
-```
+### Tutorials
+
+| Doc | Topic |
+|-----|--------|
+| [docs/tutorials/industry-stack.md](docs/tutorials/industry-stack.md) | Industry libraries on each layer (install & run) |
+| [docs/tutorials/sbe-codegen.md](docs/tutorials/sbe-codegen.md) | Real Logic SBE schema → C++ codecs |
+| [docs/tutorials/linux-numa-uring.md](docs/tutorials/linux-numa-uring.md) | Linux NUMA + io_uring |
+| [docs/tutorials/hdrhistogram-c.md](docs/tutorials/hdrhistogram-c.md) | Portable HDR and HdrHistogram_c |
+| [docs/tutorials/kernel-bypass-lab.md](docs/tutorials/kernel-bypass-lab.md) | DPDK / OpenOnload lab (contract + stub) |
+| [docs/tutorials/ninja-build.md](docs/tutorials/ninja-build.md) | Building with Ninja |
+| [docs/tutorials/modern-cpp-tooling-arm-intel.md](docs/tutorials/modern-cpp-tooling-arm-intel.md) | Compilers, flags, ARM & Intel, cross-compilation |
+
+### Library guides
+
+| Doc | Component |
+|-----|-----------|
+| [docs/libraries/README.md](docs/libraries/README.md) | Library index and selection notes |
+| [docs/libraries/asio.md](docs/libraries/asio.md) | Asio |
+| [docs/libraries/beast.md](docs/libraries/beast.md) | Boost.Beast |
+| [docs/libraries/taskflow.md](docs/libraries/taskflow.md) | Taskflow |
+| [docs/libraries/tbb.md](docs/libraries/tbb.md) | oneTBB |
+| [docs/libraries/stdexec.md](docs/libraries/stdexec.md) | stdexec (P2300) |
+| [docs/libraries/simdjson.md](docs/libraries/simdjson.md) | simdjson |
+| [docs/libraries/grpc-protobuf.md](docs/libraries/grpc-protobuf.md) | gRPC + Protocol Buffers |
+| [docs/libraries/folly.md](docs/libraries/folly.md) | Folly (optional) |
+| [docs/libraries/hpx.md](docs/libraries/hpx.md) | HPX (optional) |
+
+### IDE, toolchains, CI
+
+| Doc | Topic |
+|-----|--------|
+| [docs/clion.md](docs/clion.md) | CLion presets, IntelliSense (`ide_index`) |
+| [cmake/toolchains/README.md](cmake/toolchains/README.md) | Example CMake toolchain files (ARM / x86_64 / macOS) |
+| [CMakePresets.json](CMakePresets.json) | `clion-debug`, `default`, Ninja presets |
+| [.github/workflows/ci.yml](.github/workflows/ci.yml) | macOS full stack + Linux roadmap smoke |
 
 ---
 
@@ -119,253 +123,180 @@ flowchart LR
 
 ```text
 .
-├── CMakeLists.txt          # C++26 · Folly/HPX · ll + industry STACK_WITH_*
-├── Makefile                # base / folly / hpx / full / examples / bench
-├── include/ll/             # SPSC, pmr, HDR, SBE helpers, numa, uring, bypass, …
-├── generated/sbe/          # Real Logic SBE C++ codecs (committed)
-├── schemas/                # tick.fbs · sbe-market-data-schema.xml
-├── examples/               # ll + industry + roadmap demos
-├── benchmarks/             # Google Benchmark (bench_queues)
-├── tests/                  # Catch2/GTest · ll · industry · roadmap
-├── scripts/generate_sbe.sh # regenerate SBE headers (Java)
-├── scripts/ci/linux_roadmap/  # minimal Linux CI (numa/uring)
-├── .github/workflows/ci.yml
-├── docs/libraries/         # per-component architecture notes
-├── docs/blueprint/         # six-layer audit + industry map
-└── docs/tutorials/         # industry + SBE + numa/uring + HDR_c + bypass lab
+├── CMakeLists.txt
+├── CMakePresets.json
+├── Makefile
+├── include/ll/                 # portable low-latency headers
+├── generated/sbe/              # committed SBE C++ codecs
+├── schemas/                    # FlatBuffers + SBE XML
+├── src/                        # lib_smoke integration binary
+├── examples/                   # demos (spsc, pmr, sbe, bypass, …)
+├── benchmarks/                 # Google Benchmark targets
+├── tests/                      # Catch2 + GTest
+├── tools/ide_index.cpp         # CLion / clangd index TU
+├── scripts/                    # SBE generator, Linux CI smoke CMake
+├── cmake/toolchains/           # cross-compile examples
+└── docs/
+    ├── blueprint/              # layers 01–07, AUDIT, narrative
+    ├── libraries/              # per-library guides
+    ├── tutorials/              # hands-on how-tos
+    └── clion.md
 ```
+
 ---
 
-## Component catalog
+## Components
 
 ### Library mesh
 
-| Domain | Component | Guide | Validation |
-|--------|-----------|-------|------------|
-| Async I/O | **Asio** (standalone) | [asio.md](docs/libraries/asio.md) | `test_beast_asio` |
-| HTTP / WS | **Boost.Beast** | [beast.md](docs/libraries/beast.md) | `ctest -R beast` |
-| Task DAGs | **Taskflow** | [taskflow.md](docs/libraries/taskflow.md) | `test_taskflow` |
-| Data parallel | **oneTBB** | [tbb.md](docs/libraries/tbb.md) | `ctest -R tbb` / `test_libs` |
-| Senders / receivers | **stdexec** (P2300) | [stdexec.md](docs/libraries/stdexec.md) | `ctest -R stdexec` / `test_libs` |
-| JSON (hot path) | **simdjson** | [simdjson.md](docs/libraries/simdjson.md) | `ctest -R simdjson` |
-| Schema / RPC | **protobuf + gRPC** | [grpc-protobuf.md](docs/libraries/grpc-protobuf.md) | `ctest -R protobuf` |
-| Service utilities | **Folly** (optional) | [folly.md](docs/libraries/folly.md) | `make folly` |
-| Parallel runtime | **HPX** (optional) | [hpx.md](docs/libraries/hpx.md) | `make hpx` |
-| Formatting / log | **fmt**, **spdlog** | catalog below | `test_libs` |
-| Strings / maps | **Abseil** | catalog below | `test_libs` |
-| Views | **range-v3** | catalog below | `test_libs` |
-| Linear algebra | **Eigen** | catalog below | `test_libs` |
-| Unit frameworks | **Catch2**, **GTest** | — | `ctest` |
-
-Full library index: [`docs/libraries/README.md`](docs/libraries/README.md).
+| Domain | Component | Guide | Tests |
+|--------|-----------|-------|-------|
+| Async I/O | Asio (standalone) | [asio.md](docs/libraries/asio.md) | `test_beast_asio` |
+| HTTP / WebSocket | Boost.Beast | [beast.md](docs/libraries/beast.md) | `test_beast_asio` |
+| Task graphs | Taskflow | [taskflow.md](docs/libraries/taskflow.md) | `test_taskflow` |
+| Data parallel | oneTBB | [tbb.md](docs/libraries/tbb.md) | `test_libs` |
+| Senders / receivers | stdexec | [stdexec.md](docs/libraries/stdexec.md) | `test_libs` |
+| JSON | simdjson, nlohmann-json | [simdjson.md](docs/libraries/simdjson.md) | `test_libs` |
+| Schema / RPC | protobuf, gRPC | [grpc-protobuf.md](docs/libraries/grpc-protobuf.md) | `test_libs` |
+| Optional services | Folly, HPX | [folly.md](docs/libraries/folly.md), [hpx.md](docs/libraries/hpx.md) | `make folly` / `make hpx` |
+| Utilities | fmt, spdlog, Abseil, range-v3, Eigen | — | `test_libs` |
 
 ### Low-latency modules (`include/ll/`)
 
-| Module | Header | Layer | Validation |
-|--------|--------|-------|------------|
-| Cache-line constants | `ll/cache_line.hpp` | §3 Memory | `ctest -R ll` |
-| SPSC ring buffer | `ll/spsc_queue.hpp` | §4 Concurrency | `test_ll_modules` · `make examples` |
-| Arena / object pool | `ll/arena.hpp` | §3 Memory | `[ll][arena]` · `example_arena` |
-| **std::pmr** arenas | `ll/pmr_arena.hpp` | §3 Memory | `[industry][pmr]` · `example_pmr` |
-| **HDR histogram** | `ll/hdr_histogram.hpp` | §6 Telemetry | `[industry][hdr]` · `example_hdr` |
-| **SBE-style wire** | `ll/sbe_style.hpp` | §2 Serde | `[industry][sbe]` · `example_sbe_style` |
-| **SBE codegen helpers** | `ll/sbe_codec.hpp` + `generated/sbe/` | §2 Serde | `[roadmap][sbe]` · `example_sbe_codegen` |
-| **Linux NUMA** | `ll/linux_numa.hpp` | §1 | `[roadmap][numa]` · `example_numa_uring` |
-| **Linux io_uring** | `ll/linux_uring.hpp` | §2 | `[roadmap][uring]` |
-| **HdrHistogram_c** | `ll/hdr_c.hpp` | §6 | `[roadmap][hdr_c]` · `example_hdr_c` |
-| **Kernel-bypass contract** | `ll/kernel_bypass.hpp` | §2 | `[roadmap][bypass]` · `example_kernel_bypass` |
-| TSC / latency samples | `ll/tsc_clock.hpp` | §6 Telemetry | `[ll][tsc]` · `example_tsc` |
-| Thread affinity / QoS | `ll/affinity.hpp` | §1 Hardware/OS | `[ll][affinity]` |
-| Branch / CRTP helpers | `ll/branch.hpp` | §5 Compiler | `[ll][branch]` |
-| Industry umbrella | `ll/industry.hpp` | all | feature macros `LL_HAS_*` |
+| Header | Role | Layer |
+|--------|------|-------|
+| `ll/spsc_queue.hpp` | Lock-free SPSC ring | §4 |
+| `ll/arena.hpp`, `ll/pmr_arena.hpp` | Arena / object pool / std::pmr | §3 |
+| `ll/cache_line.hpp` | Cache-line constants / padding | §3 |
+| `ll/sbe_style.hpp`, `ll/sbe_codec.hpp` | SBE-style POD + generated codecs | §2 |
+| `ll/struct_pack_tick.hpp` | struct_pack tick helpers | §2 |
+| `ll/affinity.hpp` | Thread pin / macOS QoS | §1 |
+| `ll/linux_numa.hpp`, `ll/linux_uring.hpp` | NUMA / io_uring (Linux or stub) | §1–2 |
+| `ll/kernel_bypass.hpp` | Poll-mode RX contract + stub | §2 |
+| `ll/tsc_clock.hpp`, `ll/hdr_histogram.hpp`, `ll/hdr_c.hpp` | Timestamps / HDR | §6 |
+| `ll/branch.hpp` | likely/unlikely, CRTP helper | §5 |
+| `ll/jemalloc_util.hpp` | Optional jemalloc helpers | §3 |
+| `ll/industry.hpp` | Umbrella + `LL_HAS_*` macros | — |
 
-### Industry libraries (auto-detect)
+### Industry libraries (CMake auto-detect)
 
-| Library | Layer | CMake / install | Validation |
-|---------|-------|-----------------|------------|
-| **Boost.Lockfree** | §4 | always (Boost required) | `[industry][boost_lockfree]` |
-| **moodycamel** ReaderWriterQueue | §4 | FetchContent (`STACK_WITH_MOODYCAMEL`) | `[industry][moodycamel]` |
-| **hwloc** | §1 | `brew install hwloc` | `[industry][hwloc]` |
-| **FlatBuffers** | §2 | `brew install flatbuffers` | `[industry][flatbuffers]` |
-| **mimalloc** | §3 off-path | `brew install mimalloc` | `[industry][mimalloc]` |
-| **jemalloc** | §3 off-path | `brew install jemalloc` | `[industry][jemalloc]` |
-| **struct_pack** | §2 serde | FetchContent yalantinglibs | `[industry][struct_pack]` · `example_struct_pack` |
-| **folly::PCQ** | §4 | auto if Folly installed | `[industry][folly_pcq]` / `make folly` |
-| **Google Benchmark** | §6 | `brew install google-benchmark` | `make bench` |
-| **libnuma / liburing** | §1 / §2 | Linux packages | soft-detect + Linux CI smoke |
-| **HdrHistogram_c** | §6 | FetchContent | default ON |
-| **Real Logic SBE tool** | §2 | `./scripts/generate_sbe.sh` | committed generated headers |
-| **DPDK / OpenOnload** | §2 | optional detect if installed | stub RX always; SDK when present |
+| Library | Role | Enable |
+|---------|------|--------|
+| Boost.Lockfree | SPSC queue | Always (Boost required) |
+| moodycamel | SPSC (FetchContent) | `STACK_WITH_MOODYCAMEL` |
+| hwloc | Topology | `brew install hwloc` |
+| FlatBuffers | Zero-copy tables | `brew install flatbuffers` |
+| struct_pack | Compile-time pack | FetchContent (yalantinglibs) |
+| mimalloc / jemalloc | Off-path allocators | `make install-industry` |
+| Folly PCQ | SPSC when Folly present | `brew install folly` |
+| HdrHistogram_c | Tail latency | FetchContent |
+| Google Benchmark | Microbenchmarks | `brew install google-benchmark` |
+| libnuma / liburing | Linux only | distro packages |
+| DPDK / OpenOnload | Header detect if installed | lab NIC; stub otherwise |
 
-```bash
-make install-industry   # hwloc flatbuffers google-benchmark mimalloc jemalloc
-brew install folly      # optional: folly::ProducerConsumerQueue tests
-```
-
-Blueprint: [`docs/blueprint/`](docs/blueprint/) · Tutorial: [`docs/tutorials/industry-stack.md`](docs/tutorials/industry-stack.md).
----
-
-## Language & toolchain
-
-| Requirement | Value |
-|-------------|--------|
-| ISO C++ | **26** (`CMAKE_CXX_STANDARD 26`, extensions off) |
-| CMake | **≥ 3.28** |
-| Compilers | Recent Clang (Apple/LLVM) or GCC with C++26 support |
-| Architectures | **AArch64 (ARM)** and **x86-64 (Intel/AMD)** — native builds; cross via toolchain examples |
-| Package manager (macOS) | Homebrew under `/opt/homebrew` (arm64) or `/usr/local` (x86_64) |
-
-Design choices encoded in CMake:
-
-- **Base profile** configures quickly without Folly/HPX  
-- **Folly / HPX** are explicit opt-in (`LIB_SMOKE_WITH_FOLLY`, `LIB_SMOKE_WITH_HPX`)  
-- **stdexec** is pulled via **FetchContent** (not packaged on Homebrew)  
-- Folly is deliberately **not** on the shared interface target to avoid include-flag collisions with Beast/Asio on Apple Clang
+Full map: [docs/blueprint/07-industry-libraries.md](docs/blueprint/07-industry-libraries.md).
 
 ---
 
 ## Dependencies
 
-### Base stack (Homebrew)
+### Base (Homebrew)
 
 ```bash
-brew install cmake fmt spdlog tbb asio boost taskflow \
+brew install cmake ninja fmt spdlog tbb asio boost taskflow \
   nlohmann-json simdjson eigen protobuf grpc \
   range-v3 abseil catch2 googletest
 ```
 
-### Optional — service / parallel runtimes
+### Industry optional
+
+```bash
+make install-industry     # hwloc flatbuffers google-benchmark mimalloc jemalloc
+brew install folly        # optional: ProducerConsumerQueue tests
+# Linux: libnuma-dev liburing-dev
+```
+
+### Optional heavy runtimes
 
 ```bash
 brew install folly
 make install-hpx          # local prefix, default ~/cpp-deps/hpx
 ```
 
-### Optional — industry low-latency
-
 ```bash
-make install-industry     # hwloc flatbuffers google-benchmark mimalloc
-# Linux: libnuma-dev liburing-dev (soft-detected)
+make deps-check           # inventory installed packages
 ```
 
-### Status check
-
-```bash
-make deps-check
-```
 ---
 
 ## Build
 
-```bash
-# Base stack: configure + build + ctest
-make
-
-# Optional profiles (isolated build directories)
-make folly                # + Folly
-make hpx                  # + HPX
-make full                 # Folly + HPX
-
-# Integration binary
-make run
-
-# Low-latency + industry examples
-make examples
-
-# Queue microbenchmarks (requires google-benchmark)
-make bench
-
-# IDE / clangd (classic build tree)
-make compile-commands
-
-# CLion — full IntelliSense (types, completion, go-to-def)
-make clion          # cmake --preset clion-debug + compile_commands.json
-make clion-index    # build tools/ide_index.cpp (indexes all public types)
-
-# Ninja generator (optional; isolated build_ninja/ tree)
-make ninja          # cmake -G Ninja + build + ctest
-make ninja-help     # list targets
-```
-
-**CLion:** open the repo root → enable CMake preset **`clion-debug`** → build target **`ide_index`**.  
-Details: [`docs/clion.md`](docs/clion.md) · presets: [`CMakePresets.json`](CMakePresets.json).
-
-**Ninja:** Ninja is a *build system* (not a compiler). Tutorial: [`docs/tutorials/ninja-build.md`](docs/tutorials/ninja-build.md).
-
-**ARM & Intel tooling / cross-compilation:**  
-[`docs/tutorials/modern-cpp-tooling-arm-intel.md`](docs/tutorials/modern-cpp-tooling-arm-intel.md) · example toolchains under [`cmake/toolchains/`](cmake/toolchains/).
-| Make target | Effect |
-|-------------|--------|
-| `make` / `all` | Base configure, build, test |
-| `make run` | Execute integration binary |
-| `make examples` | Build and run `ll` + industry demos |
-| `make bench` | Google Benchmark (`bench_queues`) |
-| `make test` | `ctest` in current `BUILD_DIR` |
-| `make folly` / `hpx` / `full` | Optional stacks |
-| `make install-industry` | Homebrew industry packages |
-| `make ninja` | Configure/build/test with **`-G Ninja`** → `build_ninja/` |
-| `make distclean` | Remove all `build*` trees |
-| `make deps-check` | Inventory Homebrew + industry + HPX |
-| `make docs` | List library + blueprint + tutorials |
-
-CMake options:
+| Goal | Command |
+|------|---------|
+| Configure, build, test (default tree) | `make` |
+| Ninja tree (`build_ninja/`) | `make ninja` |
+| Run integration binary | `make run` |
+| Examples | `make examples` |
+| Microbenchmarks | `make bench` |
+| Folly / HPX / both | `make folly` · `make hpx` · `make full` |
+| CLion debug + index | `make clion` · `make clion-index` |
+| Clean all build trees | `make distclean` |
 
 ```bash
-cmake -S . -B build \
+# Explicit CMake
+cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DLIB_SMOKE_WITH_FOLLY=ON \
-  -DLIB_SMOKE_WITH_HPX=ON \
-  -DLIB_SMOKE_HPX_ROOT=$HOME/cpp-deps/hpx
+  -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+cmake --build build -j
+ctest --test-dir build --output-on-failure
 ```
+
+Optional CMake flags: `LIB_SMOKE_WITH_FOLLY`, `LIB_SMOKE_WITH_HPX`, `STACK_WITH_*`  
+(see `CMakeLists.txt` and `cmake --help-variable-cache` after configure).
+
+More detail:
+
+- Ninja: [docs/tutorials/ninja-build.md](docs/tutorials/ninja-build.md)
+- ARM / Intel / cross: [docs/tutorials/modern-cpp-tooling-arm-intel.md](docs/tutorials/modern-cpp-tooling-arm-intel.md)
+- CLion: [docs/clion.md](docs/clion.md)
 
 ---
 
-## Samples & tests
+## Tests and examples
 
-### Integration binary (`src/main.cpp`)
-
-One process walks the stack end-to-end and prints `[PASS]` / `[FAIL]` per check: Asio, Beast version, fmt/spdlog, Abseil, TBB reduce, Taskflow, ranges, JSON (nlohmann + simdjson), Eigen, protobuf/gRPC versions, stdexec pool, and optionally Folly/HPX.
-
-```bash
-./build/lib_smoke
-```
-
-### Automated suites
+### Suites
 
 | Target | Framework | Focus |
 |--------|-----------|--------|
-| `test_beast_asio` | Catch2 | Asio posts/timers · Beast HTTP types |
-| `test_taskflow` | Catch2 | Task graph execution |
-| `test_libs` | Catch2 | fmt, TBB, simdjson, nlohmann, Eigen, Abseil, ranges, protobuf, stdexec |
-| `test_ll_modules` | Catch2 | SPSC stress, arena/pool, TSC, affinity, CRTP |
-| `test_industry_stack` | Catch2 | pmr, SBE, struct_pack, queues, allocators, bypass caps, … |
-| `test_roadmap_stack` | Catch2 | SBE codegen, numa, uring, HdrHistogram_c, bypass stub |
-| `test_gtest_smoke` | GTest | Framework install sanity |
-| `test_folly` | Catch2 | Folly (optional profile) |
-| `test_hpx` | Catch2 | HPX (optional profile) |
+| `lib_smoke` | binary | End-to-end library checks |
+| `test_beast_asio` | Catch2 | Asio / Beast |
+| `test_taskflow` | Catch2 | Task graphs |
+| `test_libs` | Catch2 | Mesh libraries |
+| `test_ll_modules` | Catch2 | `ll` primitives |
+| `test_industry_stack` | Catch2 | Industry deps + serde + queues |
+| `test_roadmap_stack` | Catch2 | SBE, numa/uring, HDR_c, bypass |
+| `test_gtest_smoke` | GTest | Framework smoke |
+| `test_folly` / `test_hpx` | Catch2 | Optional profiles |
 
 ```bash
 ctest --test-dir build --output-on-failure
-ctest --test-dir build -R 'll|industry|simdjson'
+ctest --test-dir build -R 'll|industry|roadmap'
 ```
 
-### Blueprint & industry examples
+### Example binaries
 
 | Binary | Topic |
 |--------|--------|
-| `example_spsc` | Producer/consumer handoff via lock-free ring |
-| `example_arena` | Bump-pointer temporary state (no malloc on path) |
-| `example_pmr` | `std::pmr` monotonic arena windows |
-| `example_hdr` | p50 / p99 / p99.9 / max latency printout |
-| `example_sbe_style` | Packed 16-byte wire tick (teaching POD) |
-| `example_sbe_codegen` | Real Logic SBE generated Tick encode/decode |
-| `example_numa_uring` | NUMA + io_uring backend status |
-| `example_hdr_c` | Portable HDR vs HdrHistogram_c |
-| `example_kernel_bypass` | Stub poll-mode RX + SBE payload |
-| `example_industry_queues` | `ll` vs Boost.Lockfree vs moodycamel |
-| `example_memory_order` | acquire/release flag handoff |
-| `example_tsc` | Cycle/ns timestamps around a tight kernel |
-| `bench_queues` | Google Benchmark comparison |
+| `example_spsc` | Lock-free SPSC handoff |
+| `example_arena` / `example_pmr` | Bump / pmr arenas |
+| `example_memory_order` | acquire/release handoff |
+| `example_tsc` / `example_hdr` / `example_hdr_c` | Timestamps and histograms |
+| `example_sbe_style` / `example_sbe_codegen` | POD wire vs generated SBE |
+| `example_struct_pack` | yalantinglibs struct_pack |
+| `example_industry_queues` | ll / Boost / moodycamel |
+| `example_numa_uring` | NUMA + io_uring status |
+| `example_kernel_bypass` | Stub poll-mode RX + SBE |
+| `bench_queues` | Google Benchmark |
 
 ```bash
 make examples
@@ -374,45 +305,28 @@ make bench
 
 ---
 
-## Design principles
+## Design notes
 
-1. **C++26 first** — standard-library direction (senders/receivers, jthread, `std::pmr`) coexists with industry libs.  
-2. **Composable layers** — I/O, parse, schedule, compute, RPC are separate concerns.  
-3. **Don’t reinvent every wheel** — prefer verified queues (Boost.Lockfree, moodycamel), topology (hwloc), and serde (FlatBuffers/SBE) where they fit.  
-4. **Low-latency honesty** — ship portable primitives; auto-enable industry deps; document OS noise and kernel bypass without claiming DPDK ownership.  
-5. **Keep the hot path small** — i-cache discipline and single-thread/actor paths are first-class design reviews.  
-6. **Measurable integration** — Catch2 suites + Google Benchmark; prefer **p99 / p99.9 / max** over mean.  
-7. **Optional heavyweights** — Folly/HPX/mimalloc/benchmark do not break the default path when missing.  
-8. **Production-minded wiring** — real `find_package`, protobuf + flatc generation, Folly/Beast coexistence notes in CMake.
-
----
-
-## Monorepo integration
-
-Private suite: [`Dmdv/cpp_agents_benchmark`](https://github.com/Dmdv/cpp_agents_benchmark)
-
-```text
-cpp_agents_benchmark/          (private)
-├── systems_stack/  ──submodule──►  Dmdv/cpp26-systems-stack  (this repo)
-├── asm_test/       ──submodule──►  Dmdv/hft-asm-l2-conflator
-└── … agent benchmarks …
-```
-
-```bash
-git clone --recurse-submodules https://github.com/Dmdv/cpp_agents_benchmark.git
-```
-
-Sources for this stack live **only** here; the private monorepo holds a gitlink, not a second copy.
+1. C++26 as the project standard; industry libraries opt in via CMake.
+2. Separate concerns: I/O, parse, schedule, compute, RPC, and hot-path primitives.
+3. Prefer proven queues and allocators over reimplementing them on the critical path.
+4. Auto-detect optional packages; keep the default configure path usable without Folly/HPX/DPDK.
+5. Prefer p99 / p99.9 / max over mean latency for anything timing-sensitive.
+6. Keep the hot-path instruction footprint small (i-cache); see blueprint §5.
 
 ---
 
 ## Related repositories
 
-| Repo | Role |
-|------|------|
-| [cpp26-systems-stack](https://github.com/Dmdv/cpp26-systems-stack) | This project — C++26 systems ecosystem |
-| [hft-asm-l2-conflator](https://github.com/Dmdv/hft-asm-l2-conflator) | AArch64 assembler HFT L2 conflator |
-| [cpp_agents_benchmark](https://github.com/Dmdv/cpp_agents_benchmark) | Private multi-agent benchmark monorepo |
+| Repository | Role |
+|------------|------|
+| [cpp26-systems-stack](https://github.com/Dmdv/cpp26-systems-stack) | This project |
+| [hft-asm-l2-conflator](https://github.com/Dmdv/hft-asm-l2-conflator) | AArch64 assembler L2 conflator |
+| [cpp_agents_benchmark](https://github.com/Dmdv/cpp_agents_benchmark) | Private monorepo (gitlinks only) |
+
+```bash
+git clone --recurse-submodules https://github.com/Dmdv/cpp_agents_benchmark.git
+```
 
 ---
 
