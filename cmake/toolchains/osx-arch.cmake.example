@@ -1,0 +1,34 @@
+# Example helper for macOS architecture selection (not a full cross sysroot).
+#
+# Usage examples:
+#   cmake -S . -B build_x86 -G Ninja \
+#     -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/osx-arch.cmake \
+#     -DOSX_ARCH=x86_64
+#
+#   cmake -S . -B build_arm -G Ninja \
+#     -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/osx-arch.cmake \
+#     -DOSX_ARCH=arm64
+#
+# Dependencies (Homebrew) must match the arch:
+#   arm64  → /opt/homebrew
+#   x86_64 → /usr/local  (often Rosetta Homebrew)
+#
+# See docs/tutorials/modern-cpp-tooling-arm-intel.md
+
+set(CMAKE_SYSTEM_NAME Darwin)
+
+if(NOT DEFINED OSX_ARCH)
+  set(OSX_ARCH "arm64")
+endif()
+
+set(CMAKE_OSX_ARCHITECTURES "${OSX_ARCH}" CACHE STRING "macOS arch" FORCE)
+
+if(OSX_ARCH STREQUAL "x86_64")
+  set(CMAKE_SYSTEM_PROCESSOR x86_64)
+  list(PREPEND CMAKE_PREFIX_PATH "/usr/local")
+elseif(OSX_ARCH STREQUAL "arm64")
+  set(CMAKE_SYSTEM_PROCESSOR arm64)
+  list(PREPEND CMAKE_PREFIX_PATH "/opt/homebrew")
+else()
+  message(FATAL_ERROR "OSX_ARCH must be arm64 or x86_64 (got ${OSX_ARCH})")
+endif()

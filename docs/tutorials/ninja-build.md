@@ -344,3 +344,4 @@ make ninja                 # configure-ninja + build-ninja + test-ninja
 | [docs/clion.md](../clion.md) | CLion + Ninja presets |
 | [CMakePresets.json](../../CMakePresets.json) | Preset `generator: Ninja` |
 | [industry-stack.md](industry-stack.md) | Optional industry libraries |
+| [modern-cpp-tooling-arm-intel.md](modern-cpp-tooling-arm-intel.md) | Compilers, ARM/Intel flags, cross-compilation |

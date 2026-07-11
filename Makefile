@@ -349,3 +349,4 @@ docs:
 	@echo "LL focus:   docs/blueprint/README.md"
 	@echo "CLion IDE:  docs/clion.md"
 	@echo "Ninja:      docs/tutorials/ninja-build.md"
+	@echo "ARM/Intel:  docs/tutorials/modern-cpp-tooling-arm-intel.md"

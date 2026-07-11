@@ -209,7 +209,8 @@ Blueprint: [`docs/blueprint/`](docs/blueprint/) · Tutorial: [`docs/tutorials/in
 | ISO C++ | **26** (`CMAKE_CXX_STANDARD 26`, extensions off) |
 | CMake | **≥ 3.28** |
 | Compilers | Recent Clang (Apple/LLVM) or GCC with C++26 support |
-| Package manager (macOS) | Homebrew under `/opt/homebrew` or `/usr/local` |
+| Architectures | **AArch64 (ARM)** and **x86-64 (Intel/AMD)** — native builds; cross via toolchain examples |
+| Package manager (macOS) | Homebrew under `/opt/homebrew` (arm64) or `/usr/local` (x86_64) |
 
 Design choices encoded in CMake:
 
@@ -287,6 +288,9 @@ make ninja-help     # list targets
 Details: [`docs/clion.md`](docs/clion.md) · presets: [`CMakePresets.json`](CMakePresets.json).
 
 **Ninja:** Ninja is a *build system* (not a compiler). Tutorial: [`docs/tutorials/ninja-build.md`](docs/tutorials/ninja-build.md).
+
+**ARM & Intel tooling / cross-compilation:**  
+[`docs/tutorials/modern-cpp-tooling-arm-intel.md`](docs/tutorials/modern-cpp-tooling-arm-intel.md) · example toolchains under [`cmake/toolchains/`](cmake/toolchains/).
 | Make target | Effect |
 |-------------|--------|
 | `make` / `all` | Base configure, build, test |

@@ -2,6 +2,9 @@
 
 Force the compiler to emit the machine code you mean — then **keep that code small**.
 
+**Tooling deep-dive (ARM vs Intel, cross-compilation, flags):**  
+[`docs/tutorials/modern-cpp-tooling-arm-intel.md`](../tutorials/modern-cpp-tooling-arm-intel.md).
+
 ## Checklist
 
 | Topic | Status |
