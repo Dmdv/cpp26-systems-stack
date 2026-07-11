@@ -8,7 +8,7 @@
 #   make docs            # list library guides
 
 .PHONY: help all configure configure-folly configure-hpx configure-full \
-	build rebuild test run smoke \
+	build rebuild test run smoke examples \
 	folly hpx full clean distclean \
 	reconfigure compile-commands \
 	install-folly install-hpx deps-check docs
@@ -47,6 +47,7 @@ help:
 	@echo "  make rebuild        Clean + configure + build + test"
 	@echo "  make test           ctest in BUILD_DIR"
 	@echo "  make run / smoke    Run lib_smoke binary"
+	@echo "  make examples       Build+run ll blueprint examples (spsc/arena/tsc/…)"
 	@echo "  make clean          Remove object files (keep CMake cache)"
 	@echo "  make distclean      Remove all build_* trees"
 	@echo ""
@@ -62,7 +63,7 @@ help:
 	@echo "  make install-hpx    Build/install HPX to HPX_ROOT ($(HPX_ROOT))"
 	@echo ""
 	@echo "Docs"
-	@echo "  make docs            # list library guides
+	@echo "  make docs           List library guides + low-latency blueprint"
 	@echo ""
 	@echo "Variables: BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_DIR=$(BUILD_DIR)"
 	@echo "           HPX_ROOT=$(HPX_ROOT) HOMEBREW_PREFIX=$(HOMEBREW_PREFIX)"
@@ -110,6 +111,19 @@ test:
 run smoke:
 	@test -x $(BUILD_DIR)/lib_smoke || $(MAKE) build
 	./$(BUILD_DIR)/lib_smoke
+
+examples:
+	@test -d $(BUILD_DIR) || $(MAKE) configure
+	$(CMAKE) --build $(BUILD_DIR) -j$(JOBS) --target \
+		example_spsc example_arena example_memory_order example_tsc
+	@echo "== example_spsc =="
+	./$(BUILD_DIR)/example_spsc
+	@echo "== example_arena =="
+	./$(BUILD_DIR)/example_arena
+	@echo "== example_memory_order =="
+	./$(BUILD_DIR)/example_memory_order
+	@echo "== example_tsc =="
+	./$(BUILD_DIR)/example_tsc
 
 # Convenience stacks (own build dirs)
 folly: configure-folly
@@ -176,4 +190,9 @@ docs:
 	@echo "Library guides (docs/libraries/):"
 	@ls -1 docs/libraries/*.md 2>/dev/null | sed 's|^|  |' || echo "  (none yet)"
 	@echo ""
+	@echo "Low-latency blueprint (docs/blueprint/):"
+	@ls -1 docs/blueprint/*.md 2>/dev/null | sed 's|^|  |' || echo "  (none yet)"
+	@echo ""
 	@echo "Start here: docs/libraries/README.md"
+	@echo "LL audit:   docs/blueprint/AUDIT.md"
+	@echo "LL focus:   docs/blueprint/README.md"

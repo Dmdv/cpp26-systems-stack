@@ -159,6 +159,16 @@ find_package(Threads REQUIRED)
 target_link_libraries(smoke_deps INTERFACE Threads::Threads)
 
 # ---------------------------------------------------------------------------
+# Low-latency portable primitives (header-only, under include/ll/)
+# ---------------------------------------------------------------------------
+add_library(ll_headers INTERFACE)
+target_include_directories(ll_headers INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+target_compile_features(ll_headers INTERFACE cxx_std_26)
+target_link_libraries(ll_headers INTERFACE Threads::Threads)
+
+# ---------------------------------------------------------------------------
 # Protobuf smoke message
 # ---------------------------------------------------------------------------
 include("${Protobuf_DIR}/protobuf-generate.cmake")
@@ -205,6 +215,10 @@ add_executable(test_libs tests/test_libs.cpp)
 target_link_libraries(test_libs PRIVATE smoke_deps smoke_proto Catch2::Catch2WithMain)
 catch_discover_tests(test_libs)
 
+add_executable(test_ll_modules tests/test_ll_modules.cpp)
+target_link_libraries(test_ll_modules PRIVATE ll_headers Catch2::Catch2WithMain)
+catch_discover_tests(test_ll_modules)
+
 if(LIB_SMOKE_WITH_FOLLY)
   add_executable(test_folly tests/test_folly.cpp)
   target_link_libraries(test_folly PRIVATE smoke_deps smoke_folly Catch2::Catch2WithMain)
@@ -226,12 +240,28 @@ target_link_libraries(test_gtest_smoke PRIVATE smoke_deps GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(test_gtest_smoke)
 
+# ---------------------------------------------------------------------------
+# Low-latency blueprint examples (run via: make examples)
+# ---------------------------------------------------------------------------
+add_executable(example_spsc examples/spsc/main.cpp)
+target_link_libraries(example_spsc PRIVATE ll_headers)
+
+add_executable(example_arena examples/arena/main.cpp)
+target_link_libraries(example_arena PRIVATE ll_headers)
+
+add_executable(example_memory_order examples/memory_order/main.cpp)
+target_link_libraries(example_memory_order PRIVATE ll_headers)
+
+add_executable(example_tsc examples/tsc/main.cpp)
+target_link_libraries(example_tsc PRIVATE ll_headers)
+
 message(STATUS "lib_smoke: Homebrew prefix = ${HOMEBREW_PREFIX}")
 message(STATUS "lib_smoke: Asio include    = ${ASIO_INCLUDE_DIR}")
 message(STATUS "lib_smoke: Taskflow include= ${TASKFLOW_INCLUDE_DIR}")
 message(STATUS "lib_smoke: C++ standard    = ${CMAKE_CXX_STANDARD}")
 message(STATUS "lib_smoke: WITH_FOLLY      = ${LIB_SMOKE_WITH_FOLLY}")
 message(STATUS "lib_smoke: WITH_HPX        = ${LIB_SMOKE_WITH_HPX}")
+message(STATUS "ll_headers: include/ll/*   = ON (SPSC, arena, TSC, affinity)")
 if(LIB_SMOKE_WITH_HPX)
   message(STATUS "lib_smoke: HPX root        = ${LIB_SMOKE_HPX_ROOT}")
 endif()
