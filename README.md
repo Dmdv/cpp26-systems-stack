@@ -277,11 +277,16 @@ make compile-commands
 # CLion — full IntelliSense (types, completion, go-to-def)
 make clion          # cmake --preset clion-debug + compile_commands.json
 make clion-index    # build tools/ide_index.cpp (indexes all public types)
+
+# Ninja generator (optional; isolated build_ninja/ tree)
+make ninja          # cmake -G Ninja + build + ctest
+make ninja-help     # list targets
 ```
 
 **CLion:** open the repo root → enable CMake preset **`clion-debug`** → build target **`ide_index`**.  
 Details: [`docs/clion.md`](docs/clion.md) · presets: [`CMakePresets.json`](CMakePresets.json).
 
+**Ninja:** Ninja is a *build system* (not a compiler). Tutorial: [`docs/tutorials/ninja-build.md`](docs/tutorials/ninja-build.md).
 | Make target | Effect |
 |-------------|--------|
 | `make` / `all` | Base configure, build, test |
@@ -291,6 +296,7 @@ Details: [`docs/clion.md`](docs/clion.md) · presets: [`CMakePresets.json`](CMak
 | `make test` | `ctest` in current `BUILD_DIR` |
 | `make folly` / `hpx` / `full` | Optional stacks |
 | `make install-industry` | Homebrew industry packages |
+| `make ninja` | Configure/build/test with **`-G Ninja`** → `build_ninja/` |
 | `make distclean` | Remove all `build*` trees |
 | `make deps-check` | Inventory Homebrew + industry + HPX |
 | `make docs` | List library + blueprint + tutorials |

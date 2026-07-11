@@ -12,6 +12,8 @@
 	folly hpx full clean distclean \
 	reconfigure compile-commands \
 	clion clion-index clion-test \
+	ninja-help configure-ninja build-ninja test-ninja run-ninja smoke-ninja \
+	examples-ninja ninja compile-commands-ninja \
 	install-folly install-hpx install-industry deps-check docs
 
 # ---------------------------------------------------------------------------
@@ -30,6 +32,9 @@ BUILD_DIR      ?= build
 BUILD_FOLLY    ?= build_folly
 BUILD_HPX      ?= build_hpx
 BUILD_FULL     ?= build_full
+# Isolated Ninja tree (do not mix generators in the same -B directory)
+BUILD_NINJA    ?= build_ninja
+NINJA          ?= ninja
 
 CMAKE_COMMON = -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 	-DCMAKE_PREFIX_PATH="$(HOMEBREW_PREFIX);$(HPX_ROOT)" \
@@ -70,11 +75,18 @@ help:
 	@echo "  make clion-index    Build ide_index (full type surface for IntelliSense)"
 	@echo "  make clion-test     ctest in build/clion-debug"
 	@echo ""
+	@echo "Ninja generator (see docs/tutorials/ninja-build.md)"
+	@echo "  make ninja-help     Detail Ninja-related targets"
+	@echo "  make ninja          Configure+build+test with -G Ninja → $(BUILD_NINJA)/"
+	@echo "  make configure-ninja / build-ninja / test-ninja / run-ninja"
+	@echo "  make examples-ninja / compile-commands-ninja"
+	@echo ""
 	@echo "Docs"
 	@echo "  make docs           List library guides + blueprint + tutorials"
 	@echo ""
 	@echo "Variables: BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_DIR=$(BUILD_DIR)"
-	@echo "           HPX_ROOT=$(HPX_ROOT) HOMEBREW_PREFIX=$(HOMEBREW_PREFIX)"
+	@echo "           BUILD_NINJA=$(BUILD_NINJA) HPX_ROOT=$(HPX_ROOT)"
+	@echo "           HOMEBREW_PREFIX=$(HOMEBREW_PREFIX)"
 
 # ---------------------------------------------------------------------------
 # Configure
@@ -198,13 +210,85 @@ clion-test:
 	cd build/clion-debug && $(CTEST) --output-on-failure -j$(JOBS)
 
 # ---------------------------------------------------------------------------
+# Ninja generator (optional parallel path; does not change default make/build)
+# Tutorial: docs/tutorials/ninja-build.md
+# ---------------------------------------------------------------------------
+ninja-help:
+	@echo "Ninja is a build system (not a compiler). CMake -G Ninja writes build.ninja;"
+	@echo "Ninja then invokes Clang/GCC. Isolated tree: $(BUILD_NINJA)/"
+	@echo ""
+	@echo "  make configure-ninja   cmake -S . -B $(BUILD_NINJA) -G Ninja …"
+	@echo "  make build-ninja       cmake --build $(BUILD_NINJA) -j$(JOBS)"
+	@echo "  make test-ninja        ctest in $(BUILD_NINJA)"
+	@echo "  make run-ninja         run $(BUILD_NINJA)/lib_smoke"
+	@echo "  make examples-ninja    build+run example_* targets"
+	@echo "  make ninja             configure + build + test"
+	@echo "  make compile-commands-ninja  link compile_commands.json → $(BUILD_NINJA)"
+	@echo ""
+	@echo "Requires: ninja on PATH (brew install ninja / apt install ninja-build)"
+	@echo "Guide:    docs/tutorials/ninja-build.md"
+	@command -v $(NINJA) >/dev/null 2>&1 && \
+		echo "ninja:     $$($(NINJA) --version 2>/dev/null | head -1) ($$(command -v $(NINJA)))" || \
+		echo "ninja:     MISSING"
+
+configure-ninja:
+	@command -v $(NINJA) >/dev/null 2>&1 || { \
+		echo "error: ninja not found on PATH. Install: brew install ninja  OR  apt install ninja-build"; \
+		exit 1; \
+	}
+	$(CMAKE) -S . -B $(BUILD_NINJA) -G Ninja $(CMAKE_COMMON) \
+		-DLIB_SMOKE_WITH_FOLLY=OFF \
+		-DLIB_SMOKE_WITH_HPX=OFF
+	@echo "Generator: Ninja  binaryDir: $(BUILD_NINJA)/"
+
+build-ninja:
+	@test -f $(BUILD_NINJA)/build.ninja || $(MAKE) configure-ninja
+	$(CMAKE) --build $(BUILD_NINJA) -j$(JOBS)
+
+test-ninja:
+	@test -f $(BUILD_NINJA)/build.ninja || $(MAKE) build-ninja
+	cd $(BUILD_NINJA) && $(CTEST) --output-on-failure -j$(JOBS)
+
+run-ninja smoke-ninja:
+	@test -x $(BUILD_NINJA)/lib_smoke || $(MAKE) build-ninja
+	./$(BUILD_NINJA)/lib_smoke
+
+examples-ninja:
+	@test -f $(BUILD_NINJA)/build.ninja || $(MAKE) configure-ninja
+	$(CMAKE) --build $(BUILD_NINJA) -j$(JOBS) --target \
+		example_spsc example_arena example_memory_order example_tsc \
+		example_pmr example_hdr example_sbe_style example_industry_queues \
+		example_sbe_codegen example_numa_uring example_hdr_c example_kernel_bypass
+	@echo "== example_spsc =="; ./$(BUILD_NINJA)/example_spsc
+	@echo "== example_arena =="; ./$(BUILD_NINJA)/example_arena
+	@echo "== example_memory_order =="; ./$(BUILD_NINJA)/example_memory_order
+	@echo "== example_tsc =="; ./$(BUILD_NINJA)/example_tsc
+	@echo "== example_pmr =="; ./$(BUILD_NINJA)/example_pmr
+	@echo "== example_hdr =="; ./$(BUILD_NINJA)/example_hdr
+	@echo "== example_sbe_style =="; ./$(BUILD_NINJA)/example_sbe_style
+	@echo "== example_industry_queues =="; ./$(BUILD_NINJA)/example_industry_queues
+	@echo "== example_sbe_codegen =="; ./$(BUILD_NINJA)/example_sbe_codegen
+	@echo "== example_numa_uring =="; ./$(BUILD_NINJA)/example_numa_uring
+	@echo "== example_hdr_c =="; ./$(BUILD_NINJA)/example_hdr_c
+	@echo "== example_kernel_bypass =="; ./$(BUILD_NINJA)/example_kernel_bypass
+
+ninja: configure-ninja build-ninja test-ninja
+	@echo "Ninja path OK — binaries in $(BUILD_NINJA)/"
+
+compile-commands-ninja:
+	@test -f $(BUILD_NINJA)/build.ninja || $(MAKE) configure-ninja
+	@ln -sfn $(BUILD_NINJA)/compile_commands.json compile_commands.json
+	@echo "Linked compile_commands.json -> $(BUILD_NINJA)/compile_commands.json"
+
+# ---------------------------------------------------------------------------
 # Clean
 # ---------------------------------------------------------------------------
 clean:
 	@if [ -d $(BUILD_DIR) ]; then $(CMAKE) --build $(BUILD_DIR) --target clean; fi
 
 distclean:
-	rm -rf $(BUILD_DIR) $(BUILD_FOLLY) $(BUILD_HPX) $(BUILD_FULL)
+	rm -rf $(BUILD_DIR) $(BUILD_FOLLY) $(BUILD_HPX) $(BUILD_FULL) $(BUILD_NINJA)
+	rm -rf build/clion-debug build/clion-release build/clion-relwithdebinfo 2>/dev/null || true
 	rm -f compile_commands.json
 
 # ---------------------------------------------------------------------------
@@ -264,3 +348,4 @@ docs:
 	@echo "Industry:   docs/tutorials/industry-stack.md"
 	@echo "LL focus:   docs/blueprint/README.md"
 	@echo "CLion IDE:  docs/clion.md"
+	@echo "Ninja:      docs/tutorials/ninja-build.md"
