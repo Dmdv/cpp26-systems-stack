@@ -2,8 +2,13 @@
 
 Public wiki: **https://github.com/Dmdv/cpp26-systems-stack/wiki**
 
-The wiki is a **mirror** of the documentation under `docs/` (blueprint chapters,
-tutorials, library guides). Source of truth remains the main repository.
+The wiki is a **read-only mirror** of the documentation under `docs/` (blueprint
+chapters, tutorials, library guides).
+
+**Original docs are never removed or moved.**  
+`docs/blueprint/`, `docs/tutorials/`, `docs/libraries/`, and `docs/clion.md` stay
+in the main repository as the source of truth. Publishing only *copies* content
+into the separate `*.wiki.git` remote (or into `build/wiki-preview/` locally).
 
 ## Publish / refresh
 
