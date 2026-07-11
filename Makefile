@@ -14,6 +14,7 @@
 	clion clion-index clion-test \
 	ninja-help configure-ninja build-ninja test-ninja run-ninja smoke-ninja \
 	examples-ninja ninja compile-commands-ninja \
+	wiki wiki-preview \
 	install-folly install-hpx install-industry deps-check docs
 
 # ---------------------------------------------------------------------------
@@ -81,8 +82,10 @@ help:
 	@echo "  make configure-ninja / build-ninja / test-ninja / run-ninja"
 	@echo "  make examples-ninja / compile-commands-ninja"
 	@echo ""
-	@echo "Docs"
+	@echo "Docs / wiki"
 	@echo "  make docs           List library guides + blueprint + tutorials"
+	@echo "  make wiki           Publish docs/ → GitHub Wiki (see docs/WIKI.md)"
+	@echo "  make wiki-preview   Generate wiki pages under build/wiki-preview only"
 	@echo ""
 	@echo "Variables: BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_DIR=$(BUILD_DIR)"
 	@echo "           BUILD_NINJA=$(BUILD_NINJA) HPX_ROOT=$(HPX_ROOT)"
@@ -355,3 +358,10 @@ docs:
 	@echo "CLion IDE:  docs/clion.md"
 	@echo "Ninja:      docs/tutorials/ninja-build.md"
 	@echo "ARM/Intel:  docs/tutorials/modern-cpp-tooling-arm-intel.md"
+	@echo "Wiki:       https://github.com/Dmdv/cpp26-systems-stack/wiki  (make wiki)"
+
+wiki:
+	@python3 scripts/publish_wiki.py
+
+wiki-preview:
+	@python3 scripts/publish_wiki.py --preview-only

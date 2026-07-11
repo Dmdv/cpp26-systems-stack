@@ -108,7 +108,7 @@ Kernel-bypass **drivers** (DPDK / OpenOnload) are detected when present; CI uses
 | [docs/libraries/folly.md](docs/libraries/folly.md) | Folly (optional) |
 | [docs/libraries/hpx.md](docs/libraries/hpx.md) | HPX (optional) |
 
-### IDE, toolchains, CI
+### IDE, toolchains, CI, wiki
 
 | Doc | Topic |
 |-----|--------|
@@ -116,6 +116,7 @@ Kernel-bypass **drivers** (DPDK / OpenOnload) are detected when present; CI uses
 | [cmake/toolchains/README.md](cmake/toolchains/README.md) | Example CMake toolchain files (ARM / x86_64 / macOS) |
 | [CMakePresets.json](CMakePresets.json) | `clion-debug`, `default`, Ninja presets |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | macOS full stack + Linux roadmap smoke |
+| [GitHub Wiki](https://github.com/Dmdv/cpp26-systems-stack/wiki) | Published docs mirror (see [docs/WIKI.md](docs/WIKI.md)) |
 
 ---
 
