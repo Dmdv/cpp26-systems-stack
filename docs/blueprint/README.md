@@ -46,9 +46,8 @@ flowchart LR
 **industry standards** (Boost.Lockfree, moodycamel, std::pmr, hwloc, FlatBuffers,
 Google Benchmark, mimalloc) — with kernel bypass kept as a documented envelope.
 
-**What we recommend building next:** production **SBE codegen** and Linux
-**numa/uring** path hardening (see AUDIT “Next recommended investment”).
-
+**Roadmap (SBE · numa/uring · HdrHistogram_c · bypass lab): complete** — see
+[`AUDIT.md`](AUDIT.md) and [`docs/tutorials/`](../tutorials/).
 ---
 
 ## Related public work

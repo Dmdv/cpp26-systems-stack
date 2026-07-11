@@ -32,15 +32,31 @@ Audited against the industry low-latency checklist (hardware/OS → kernel bypas
 |------|--------|---------------------|
 | **1** | §4 Concurrency + §3 Memory | **SHIPPED** — `ll` SPSC, Boost.Lockfree, moodycamel*, pmr/arena, cache lines |
 | **2** | C++26 library mesh (I/O, parse, schedule, RPC) | **SHIPPED** — full integration binary + suites |
-| **3** | §6 Telemetry | **SHIPPED** — TSC, `HdrLatencyHistogram`, Google Benchmark* |
-| **4** | §1 Hardware/OS + §2 portable serde | **OPTIONAL/SHIPPED** — hwloc*, SBE-style, FlatBuffers* |
-| **5** | §2 Kernel bypass (DPDK / Onload) | **GAP** (documented boundary) |
+| **3** | §6 Telemetry | **SHIPPED** — TSC, portable HDR, **HdrHistogram_c**, Google Benchmark* |
+| **4** | §1 / §2 portable wire | **SHIPPED** — **SBE codegen**, hwloc*, FlatBuffers*, numa/uring APIs |
+| **5** | §2 Kernel bypass drivers | **Contract + lab** — stub RX shipped; DPDK/Onload not linked |
 
 \*auto-enabled when the package is installed (`make install-industry`).
 
-**Recommended next investment:** Real Logic SBE codegen for production schemas · Linux numa/uring CI · optional HdrHistogram_c.
+### Roadmap (recommended order) — implemented
 
-Full checklist: [`docs/blueprint/AUDIT.md`](docs/blueprint/AUDIT.md) · industry map: [`docs/blueprint/07-industry-libraries.md`](docs/blueprint/07-industry-libraries.md) · tutorial: [`docs/tutorials/industry-stack.md`](docs/tutorials/industry-stack.md).
+| # | Investment | Status | Tutorial |
+|---|------------|--------|----------|
+| 1 | Real Logic **SBE codegen** for production schemas | **Done** | [sbe-codegen.md](docs/tutorials/sbe-codegen.md) |
+| 2 | Linux **numa + io_uring** demos + CI | **Done** | [linux-numa-uring.md](docs/tutorials/linux-numa-uring.md) |
+| 3 | **HdrHistogram_c** beside portable HDR | **Done** | [hdrhistogram-c.md](docs/tutorials/hdrhistogram-c.md) |
+| 4 | **DPDK / Onload** dedicated NIC lab | **Done** (API + runbook; no vendor SDK) | [kernel-bypass-lab.md](docs/tutorials/kernel-bypass-lab.md) |
+
+```bash
+./scripts/generate_sbe.sh          # regenerate SBE C++ from XML (Java)
+ctest --test-dir build -R roadmap  # SBE · numa · uring · hdr_c · bypass
+./build/example_sbe_codegen
+./build/example_numa_uring
+./build/example_hdr_c
+./build/example_kernel_bypass
+```
+
+Full checklist: [`docs/blueprint/AUDIT.md`](docs/blueprint/AUDIT.md) · industry map: [`docs/blueprint/07-industry-libraries.md`](docs/blueprint/07-industry-libraries.md) · tutorials: [`docs/tutorials/`](docs/tutorials/).
 ---
 
 ## Ecosystem map
@@ -104,17 +120,18 @@ flowchart LR
 .
 ├── CMakeLists.txt          # C++26 · Folly/HPX · ll + industry STACK_WITH_*
 ├── Makefile                # base / folly / hpx / full / examples / bench
-├── include/ll/             # SPSC, arena, pmr, HDR, SBE-style, TSC, affinity
-├── schemas/tick.fbs        # FlatBuffers sample schema
-├── examples/               # spsc, arena, pmr, hdr, sbe_style, industry_queues, …
+├── include/ll/             # SPSC, pmr, HDR, SBE helpers, numa, uring, bypass, …
+├── generated/sbe/          # Real Logic SBE C++ codecs (committed)
+├── schemas/                # tick.fbs · sbe-market-data-schema.xml
+├── examples/               # ll + industry + roadmap demos
 ├── benchmarks/             # Google Benchmark (bench_queues)
-├── proto/smoke.proto       # sample protobuf message
-├── src/main.cpp            # integration binary: one-shot stack exercise
-├── tests/                  # Catch2 + GTest + ll + industry suites
-├── scripts/install_hpx.sh  # local HPX bootstrap
+├── tests/                  # Catch2/GTest · ll · industry · roadmap
+├── scripts/generate_sbe.sh # regenerate SBE headers (Java)
+├── scripts/ci/linux_roadmap/  # minimal Linux CI (numa/uring)
+├── .github/workflows/ci.yml
 ├── docs/libraries/         # per-component architecture notes
-├── docs/blueprint/         # six-layer audit + industry library map
-└── docs/tutorials/         # hands-on industry-stack tutorial
+├── docs/blueprint/         # six-layer audit + industry map
+└── docs/tutorials/         # industry + SBE + numa/uring + HDR_c + bypass lab
 ```
 ---
 
@@ -151,6 +168,11 @@ Full library index: [`docs/libraries/README.md`](docs/libraries/README.md).
 | **std::pmr** arenas | `ll/pmr_arena.hpp` | §3 Memory | `[industry][pmr]` · `example_pmr` |
 | **HDR histogram** | `ll/hdr_histogram.hpp` | §6 Telemetry | `[industry][hdr]` · `example_hdr` |
 | **SBE-style wire** | `ll/sbe_style.hpp` | §2 Serde | `[industry][sbe]` · `example_sbe_style` |
+| **SBE codegen helpers** | `ll/sbe_codec.hpp` + `generated/sbe/` | §2 Serde | `[roadmap][sbe]` · `example_sbe_codegen` |
+| **Linux NUMA** | `ll/linux_numa.hpp` | §1 | `[roadmap][numa]` · `example_numa_uring` |
+| **Linux io_uring** | `ll/linux_uring.hpp` | §2 | `[roadmap][uring]` |
+| **HdrHistogram_c** | `ll/hdr_c.hpp` | §6 | `[roadmap][hdr_c]` · `example_hdr_c` |
+| **Kernel-bypass contract** | `ll/kernel_bypass.hpp` | §2 | `[roadmap][bypass]` · `example_kernel_bypass` |
 | TSC / latency samples | `ll/tsc_clock.hpp` | §6 Telemetry | `[ll][tsc]` · `example_tsc` |
 | Thread affinity / QoS | `ll/affinity.hpp` | §1 Hardware/OS | `[ll][affinity]` |
 | Branch / CRTP helpers | `ll/branch.hpp` | §5 Compiler | `[ll][branch]` |
@@ -166,8 +188,11 @@ Full library index: [`docs/libraries/README.md`](docs/libraries/README.md).
 | **FlatBuffers** | §2 | `brew install flatbuffers` | `[industry][flatbuffers]` |
 | **mimalloc** | §3 off-path | `brew install mimalloc` | `[industry][mimalloc]` |
 | **Google Benchmark** | §6 | `brew install google-benchmark` | `make bench` |
-| **libnuma / liburing** | §1 / §2 | Linux packages | soft-detect |
-| **DPDK / OpenOnload / SBE tool / struct_pack** | §2 | — | **DOC/GAP** — see tutorial |
+| **libnuma / liburing** | §1 / §2 | Linux packages | soft-detect + Linux CI smoke |
+| **HdrHistogram_c** | §6 | FetchContent | default ON |
+| **Real Logic SBE tool** | §2 | `./scripts/generate_sbe.sh` | committed generated headers |
+| **DPDK / OpenOnload** | §2 | lab NIC only | contract + runbook (**no SDK linked**) |
+| **struct_pack** | §2 | — | **DOC** |
 
 ```bash
 make install-industry   # hwloc flatbuffers google-benchmark mimalloc
@@ -293,6 +318,7 @@ One process walks the stack end-to-end and prints `[PASS]` / `[FAIL]` per check:
 | `test_libs` | Catch2 | fmt, TBB, simdjson, nlohmann, Eigen, Abseil, ranges, protobuf, stdexec |
 | `test_ll_modules` | Catch2 | SPSC stress, arena/pool, TSC, affinity, CRTP |
 | `test_industry_stack` | Catch2 | pmr, HDR, SBE-style, Boost.Lockfree, moodycamel/hwloc/FB/mimalloc* |
+| `test_roadmap_stack` | Catch2 | SBE codegen, numa, uring, HdrHistogram_c, bypass stub |
 | `test_gtest_smoke` | GTest | Framework install sanity |
 | `test_folly` | Catch2 | Folly (optional profile) |
 | `test_hpx` | Catch2 | HPX (optional profile) |
@@ -310,7 +336,11 @@ ctest --test-dir build -R 'll|industry|simdjson'
 | `example_arena` | Bump-pointer temporary state (no malloc on path) |
 | `example_pmr` | `std::pmr` monotonic arena windows |
 | `example_hdr` | p50 / p99 / p99.9 / max latency printout |
-| `example_sbe_style` | Packed 16-byte wire tick |
+| `example_sbe_style` | Packed 16-byte wire tick (teaching POD) |
+| `example_sbe_codegen` | Real Logic SBE generated Tick encode/decode |
+| `example_numa_uring` | NUMA + io_uring backend status |
+| `example_hdr_c` | Portable HDR vs HdrHistogram_c |
+| `example_kernel_bypass` | Stub poll-mode RX + SBE payload |
 | `example_industry_queues` | `ll` vs Boost.Lockfree vs moodycamel |
 | `example_memory_order` | acquire/release flag handoff |
 | `example_tsc` | Cycle/ns timestamps around a tight kernel |

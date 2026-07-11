@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.28)
 project(cpp26_systems_stack
   VERSION 1.0.0
   DESCRIPTION "C++26 systems stack — async I/O, parallelism, JSON, RPC integration"
-  LANGUAGES CXX
+  LANGUAGES CXX C
 )
 
 set(CMAKE_CXX_STANDARD 26)
@@ -25,6 +25,8 @@ option(STACK_WITH_MIMALLOC     "Link mimalloc for off-path allocations" ON)
 option(STACK_WITH_MOODYCAMEL   "Fetch moodycamel ReaderWriterQueue" ON)
 option(STACK_WITH_LIBNUMA      "Linux: libnuma (optional)" ON)
 option(STACK_WITH_LIBURING     "Linux: liburing / io_uring (optional)" ON)
+option(STACK_WITH_HDRHISTOGRAM "Fetch HdrHistogram_c for production HDR telemetry" ON)
+option(STACK_WITH_SBE_CODEGEN  "Use Real Logic SBE generated codecs under generated/sbe" ON)
 
 # Optional search hints (HPX is not on Homebrew)
 set(LIB_SMOKE_HPX_ROOT "$ENV{HOME}/cpp-deps/hpx" CACHE PATH
@@ -177,6 +179,19 @@ target_include_directories(ll_headers INTERFACE
 target_compile_features(ll_headers INTERFACE cxx_std_26)
 target_link_libraries(ll_headers INTERFACE Threads::Threads)
 
+# Real Logic SBE generated codecs (committed under generated/sbe; regenerate via scripts/generate_sbe.sh)
+set(STACK_HAS_SBE_CODEGEN 0)
+if(STACK_WITH_SBE_CODEGEN AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe/Tick.h")
+  target_include_directories(ll_headers INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe"
+  )
+  target_compile_definitions(ll_headers INTERFACE LL_HAS_SBE_CODEGEN=1)
+  set(STACK_HAS_SBE_CODEGEN 1)
+  message(STATUS "stack: SBE codegen codecs          = ON (generated/sbe/market_sbe)")
+else()
+  message(STATUS "stack: SBE codegen codecs          = OFF")
+endif()
+
 # LL_HAS_* macros default to 0 in include/ll/industry.hpp; CMake sets =1 when found.
 
 # ---------------------------------------------------------------------------
@@ -327,6 +342,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       target_compile_definitions(ll_headers INTERFACE LL_HAS_LIBNUMA=1)
       set(STACK_HAS_LIBNUMA 1)
       message(STATUS "stack: libnuma                     = ON")
+    else()
+      message(STATUS "stack: libnuma                     = OFF (not found)")
     endif()
   endif()
   if(STACK_WITH_LIBURING)
@@ -339,7 +356,38 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       target_compile_definitions(ll_headers INTERFACE LL_HAS_LIBURING=1)
       set(STACK_HAS_LIBURING 1)
       message(STATUS "stack: liburing                    = ON")
+    else()
+      message(STATUS "stack: liburing                    = OFF (not found)")
     endif()
+  endif()
+else()
+  message(STATUS "stack: libnuma/liburing            = stubs (non-Linux)")
+endif()
+
+# HdrHistogram_c (production HDR) — FetchContent static lib
+set(STACK_HAS_HDRHISTOGRAM_C 0)
+if(STACK_WITH_HDRHISTOGRAM)
+  set(HDR_HISTOGRAM_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+  set(HDR_HISTOGRAM_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(HDR_HISTOGRAM_BUILD_STATIC ON CACHE BOOL "" FORCE)
+  set(HDR_HISTOGRAM_INSTALL_SHARED OFF CACHE BOOL "" FORCE)
+  set(HDR_HISTOGRAM_INSTALL_STATIC OFF CACHE BOOL "" FORCE)
+  set(HDR_LOG_REQUIRED OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    hdr_histogram_c
+    GIT_REPOSITORY https://github.com/HdrHistogram/HdrHistogram_c.git
+    GIT_TAG        0.11.10
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(hdr_histogram_c)
+  if(TARGET hdr_histogram_static)
+    add_library(stack_hdr_c INTERFACE)
+    target_link_libraries(stack_hdr_c INTERFACE hdr_histogram_static)
+    target_compile_definitions(ll_headers INTERFACE LL_HAS_HDRHISTOGRAM_C=1)
+    set(STACK_HAS_HDRHISTOGRAM_C 1)
+    message(STATUS "stack: HdrHistogram_c              = ON (FetchContent static)")
+  else()
+    message(STATUS "stack: HdrHistogram_c              = OFF (target missing)")
   endif()
 endif()
 
@@ -363,6 +411,9 @@ if(STACK_HAS_LIBNUMA)
 endif()
 if(STACK_HAS_LIBURING)
   target_link_libraries(stack_industry INTERFACE stack_uring)
+endif()
+if(STACK_HAS_HDRHISTOGRAM_C)
+  target_link_libraries(stack_industry INTERFACE stack_hdr_c)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -425,6 +476,11 @@ add_executable(test_industry_stack ${_industry_sources})
 target_link_libraries(test_industry_stack PRIVATE stack_industry Catch2::Catch2WithMain)
 catch_discover_tests(test_industry_stack)
 
+# Roadmap: SBE codegen, numa/uring, HdrHistogram_c, kernel-bypass stubs
+add_executable(test_roadmap_stack tests/test_roadmap_stack.cpp)
+target_link_libraries(test_roadmap_stack PRIVATE stack_industry Catch2::Catch2WithMain)
+catch_discover_tests(test_roadmap_stack)
+
 if(LIB_SMOKE_WITH_FOLLY)
   add_executable(test_folly tests/test_folly.cpp)
   target_link_libraries(test_folly PRIVATE smoke_deps smoke_folly Catch2::Catch2WithMain)
@@ -473,6 +529,18 @@ target_link_libraries(example_sbe_style PRIVATE ll_headers)
 add_executable(example_industry_queues examples/industry_queues/main.cpp)
 target_link_libraries(example_industry_queues PRIVATE stack_industry)
 
+add_executable(example_sbe_codegen examples/sbe_codegen/main.cpp)
+target_link_libraries(example_sbe_codegen PRIVATE stack_industry)
+
+add_executable(example_numa_uring examples/numa_uring/main.cpp)
+target_link_libraries(example_numa_uring PRIVATE stack_industry)
+
+add_executable(example_hdr_c examples/hdr_c/main.cpp)
+target_link_libraries(example_hdr_c PRIVATE stack_industry)
+
+add_executable(example_kernel_bypass examples/kernel_bypass/main.cpp)
+target_link_libraries(example_kernel_bypass PRIVATE stack_industry)
+
 # Google Benchmark microbenches (optional)
 if(STACK_HAS_BENCHMARK)
   add_executable(bench_queues benchmarks/bench_queues.cpp)
@@ -488,8 +556,9 @@ message(STATUS "lib_smoke: Taskflow include= ${TASKFLOW_INCLUDE_DIR}")
 message(STATUS "lib_smoke: C++ standard    = ${CMAKE_CXX_STANDARD}")
 message(STATUS "lib_smoke: WITH_FOLLY      = ${LIB_SMOKE_WITH_FOLLY}")
 message(STATUS "lib_smoke: WITH_HPX        = ${LIB_SMOKE_WITH_HPX}")
-message(STATUS "ll_headers: include/ll/*   = ON (SPSC, arena, TSC, affinity, pmr, hdr, sbe)")
+message(STATUS "ll_headers: include/ll/*   = ON (+ sbe_gen, numa, uring, hdr_c, bypass)")
 message(STATUS "stack: industry hwloc/fb/mi/mc = ${STACK_HAS_HWLOC}/${STACK_HAS_FLATBUFFERS}/${STACK_HAS_MIMALLOC}/${STACK_HAS_MOODYCAMEL}")
+message(STATUS "stack: sbe/hdr_c/numa/uring    = ${STACK_HAS_SBE_CODEGEN}/${STACK_HAS_HDRHISTOGRAM_C}/${STACK_HAS_LIBNUMA}/${STACK_HAS_LIBURING}")
 if(LIB_SMOKE_WITH_HPX)
   message(STATUS "lib_smoke: HPX root        = ${LIB_SMOKE_HPX_ROOT}")
 endif()

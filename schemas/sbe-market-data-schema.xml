@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Real Logic Simple Binary Encoding schema for cpp26-systems-stack.
+  Regenerate C++ codecs:  ./scripts/generate_sbe.sh
+  Tutorial: docs/tutorials/sbe-codegen.md
+-->
+<sbe:messageSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xmlns:sbe="http://fix-logic.com/schemas/sbe/1.0"
+                   package="market.sbe"
+                   id="77"
+                   version="0"
+                   semanticVersion="1.0.0"
+                   description="L1 market tick for systems stack"
+                   byteOrder="littleEndian"
+                   xsi:schemaLocation="http://fix-logic.com/schemas/sbe/1.0 sbe.xsd">
+    <types>
+        <composite name="messageHeader" description="Message identifiers and length of message root">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="templateId" primitiveType="uint16"/>
+            <type name="schemaId" primitiveType="uint16"/>
+            <type name="version" primitiveType="uint16"/>
+        </composite>
+        <type name="InstrumentId" primitiveType="uint32" description="Instrument identifier"/>
+        <type name="PriceTicks" primitiveType="int32" description="Price in ticks"/>
+        <type name="Quantity" primitiveType="uint32"/>
+        <type name="Sequence" primitiveType="uint32"/>
+        <type name="TimestampNs" primitiveType="uint64" description="Exchange timestamp ns"/>
+    </types>
+
+    <sbe:message name="Tick" id="1" description="Single L1 trade/quote tick">
+        <field name="instrumentId" id="1" type="InstrumentId"/>
+        <field name="priceTicks" id="2" type="PriceTicks"/>
+        <field name="qty" id="3" type="Quantity"/>
+        <field name="seq" id="4" type="Sequence"/>
+        <field name="tsNs" id="5" type="TimestampNs"/>
+    </sbe:message>
+</sbe:messageSchema>

@@ -10,8 +10,8 @@ Status legend:
 | **PARTIAL** | Touched via demo or third-party lib only |
 | **GAP** | Not implemented here (reference / future module) |
 
-Industry library map: [`07-industry-libraries.md`](07-industry-libraries.md) ·
-Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
+Industry map: [`07-industry-libraries.md`](07-industry-libraries.md) ·  
+Tutorials: [`../tutorials/`](../tutorials/).
 
 ---
 
@@ -19,12 +19,12 @@ Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| CPU isolation (`isolcpus`, `nohz_full`) | **DOC** | `ll/affinity.hpp` notes; `01-hardware-os.md` |
-| Thread pinning `pthread_setaffinity_np` | **SHIPPED** (Linux) / **DOC** (macOS QoS) | `ll/affinity.hpp` |
-| Topology discovery (**hwloc**) | **OPTIONAL** | `[industry][hwloc]` when lib present |
-| NUMA (`numactl`, **libnuma**) | **DOC** / Linux **OPTIONAL** | soft CMake find + docs |
+| CPU isolation (`isolcpus`, `nohz_full`) | **DOC** | `01-hardware-os.md` |
+| Thread pinning | **SHIPPED** / macOS QoS **DOC** | `ll/affinity.hpp` |
+| **hwloc** topology | **OPTIONAL** | `[industry][hwloc]` |
+| **libnuma** bind / alloc_onnode | **SHIPPED** API + Linux **OPTIONAL** link | `ll/linux_numa.hpp`, `[roadmap][numa]`, Linux CI |
 | C-states / P-states / governor | **DOC** | `01-hardware-os.md` |
-| Hugepages / TLB | **DOC** | `01-hardware-os.md` |
+| Hugepages / TLB | **DOC** | `01-hardware-os.md`, kernel-bypass lab |
 
 ---
 
@@ -32,14 +32,14 @@ Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| OpenOnload / EF_VI / **DPDK** | **GAP** | Documented envelope; not a driver product |
-| **liburing** (`io_uring`) | Linux **OPTIONAL** | soft find when headers present |
-| User-space NIC polling demo | **GAP** | Roadmap in `02-network-ingress.md` |
-| Zero-copy kernel socket path | **PARTIAL** | Asio buffer-oriented APIs |
-| **SBE** / packed POD | **SHIPPED** (style) + **DOC** (Real Logic tool) | `ll/sbe_style.hpp` |
-| **FlatBuffers** | **OPTIONAL** | `schemas/tick.fbs`, industry tests |
-| **struct_pack** | **DOC** | tutorial pointer |
-| JSON / protobuf awareness | **SHIPPED** | simdjson, nlohmann-json, protobuf, gRPC |
+| **IPollModeRx** contract + stub | **SHIPPED** | `ll/kernel_bypass.hpp`, `[roadmap][bypass]` |
+| **DPDK** implementation | **GAP** (lab runbook) | `docs/tutorials/kernel-bypass-lab.md` |
+| **OpenOnload / EF_VI** implementation | **GAP** (lab runbook) | same |
+| **liburing** | **SHIPPED** API + Linux **OPTIONAL** | `ll/linux_uring.hpp`, Linux CI |
+| **Real Logic SBE codegen** | **SHIPPED** | `schemas/sbe-*.xml`, `generated/sbe/`, `ll/sbe_codec.hpp` |
+| SBE-style POD teaching aid | **SHIPPED** | `ll/sbe_style.hpp` |
+| **FlatBuffers** | **OPTIONAL** | `schemas/tick.fbs` |
+| Asio / Beast / gRPC / simdjson | **SHIPPED** | library mesh |
 
 ---
 
@@ -47,12 +47,10 @@ Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| No malloc on critical path (pattern) | **SHIPPED** | `ll/Arena`, `ll/ObjectPool`, **`ll/PmrMonotonicArena`** |
-| **std::pmr** monotonic / unsync pool | **SHIPPED** | `ll/pmr_arena.hpp` |
-| **mimalloc** / jemalloc (off path) | **OPTIONAL** / **DOC** | industry tests when installed |
-| False sharing prevention | **SHIPPED** | `alignas(kCacheLine)` on SPSC head/tail |
-| `hardware_destructive_interference_size` | **SHIPPED** | `ll/cache_line.hpp` |
-| AoS vs SoA guidance | **DOC** | `03-memory.md` |
+| Arena / object pool | **SHIPPED** | `ll/arena.hpp` |
+| **std::pmr** | **SHIPPED** | `ll/pmr_arena.hpp` |
+| **mimalloc** off-path | **OPTIONAL** | industry tests |
+| False sharing / cache lines | **SHIPPED** | `ll/cache_line.hpp`, SPSC |
 
 ---
 
@@ -60,27 +58,19 @@ Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| SPSC lock-free ring (`ll`) | **SHIPPED** | `ll/spsc_queue.hpp` + stress test |
-| **Boost.Lockfree** `spsc_queue` | **SHIPPED** | `[industry][boost_lockfree]` |
-| **moodycamel::ReaderWriterQueue** | **OPTIONAL** | FetchContent + stress test |
-| **folly::ProducerConsumerQueue** | **OPTIONAL** | Folly profile |
-| acquire / release / relaxed explanation | **SHIPPED** | `04-concurrency.md` + examples |
-| Mutex-free critical path pattern | **SHIPPED** | SPSC + single-thread actor guidance |
-| Actor / single-thread hot path | **DOC** + related HFT repo | `04-concurrency.md` |
-| MPSC / MPMC | **PARTIAL** | moodycamel ConcurrentQueue documented; not default |
+| `ll::SpscQueue` | **SHIPPED** | tests + examples |
+| Boost.Lockfree / moodycamel | **SHIPPED** / **OPTIONAL** | industry suite |
+| Memory order tutorial | **SHIPPED** | `examples/memory_order` |
 
 ---
 
-## 5. Compiler exploitation & language modernity
+## 5. Compiler & language
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| C++26 project default | **SHIPPED** | `CMAKE_CXX_STANDARD 26` |
-| constexpr / consteval guidance | **DOC** | `05-compiler.md` |
-| CRTP / static polymorphism | **SHIPPED** | `ll/StaticInterface` |
-| `[[likely]]` / `[[unlikely]]` | **SHIPPED** | `ll/branch.hpp` macros |
-| LTO / PGO / march guidance | **DOC** | `05-compiler.md` |
-| Keep critical path in L1 i-cache | **DOC** | blueprint intro + industry tutorial |
+| C++26 project | **SHIPPED** | CMake |
+| CRTP / likely | **SHIPPED** | `ll/branch.hpp` |
+| LTO/PGO guidance | **DOC** | `05-compiler.md` |
 
 ---
 
@@ -88,14 +78,10 @@ Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| `perf` / PMC guidance | **DOC** | `06-telemetry.md` |
-| RDTSC / `cntvct_el0` | **SHIPPED** | `ll/read_tsc()` |
-| steady_clock ns | **SHIPPED** | `ll/steady_ns()` |
-| Non-allocating sample buffer | **SHIPPED** | `ll/LatencyBuffer` |
-| **HDR-style histogram** (p99 / p99.9 / max) | **SHIPPED** | `ll/HdrLatencyHistogram` |
-| **HdrHistogram_c** | **DOC** | production upgrade path |
-| **Google Benchmark** | **OPTIONAL** | `bench_queues` |
-| Do not trust mean alone | **DOC** | tutorial + `example_hdr` |
+| TSC / steady_ns | **SHIPPED** | `ll/tsc_clock.hpp` |
+| Portable HDR histogram | **SHIPPED** | `ll/HdrLatencyHistogram` |
+| **HdrHistogram_c** | **SHIPPED** (FetchContent) | `ll/hdr_c.hpp`, `[roadmap][hdr_c]` |
+| Google Benchmark | **OPTIONAL** | `bench_queues` |
 
 ---
 
@@ -103,17 +89,19 @@ Tutorial: [`../tutorials/industry-stack.md`](../tutorials/industry-stack.md).
 
 | Rank | Layer | Why |
 |------|--------|-----|
-| 1 | **§4 Concurrency** + **§3 Memory** | Portable primitives + industry queues (Boost / moodycamel) + pmr |
-| 2 | **Library mesh** + **industry optional deps** | Asio/Beast/… plus hwloc, FlatBuffers, mimalloc, benchmark |
-| 3 | **§6 Telemetry** | HDR percentiles + Google Benchmark when present |
-| 4 | **§1 / §5** | hwloc + operator / compiler guidance |
-| 5 | **§2 Kernel bypass** | Documented boundary; SBE-style + FlatBuffers on portable path |
+| 1 | §4 + §3 | Queues, arenas, pmr |
+| 2 | Library mesh + industry optional | Asio… + hwloc/FB/mimalloc/moodycamel |
+| 3 | §6 Telemetry | Portable HDR + **HdrHistogram_c** |
+| 4 | §2 Serde + §1 NUMA | **SBE codegen**, numa/uring APIs |
+| 5 | §2 Bypass drivers | Contract + lab; DPDK/Onload not linked |
 
-### Next recommended investment
+### Roadmap status (this release)
 
-1. Real Logic **SBE codegen** for production schemas  
-2. Linux **numa + uring** demos in CI on Linux runners  
-3. Optional **HdrHistogram_c** wrapper next to `ll::HdrLatencyHistogram`  
-4. DPDK / Onload only with dedicated hardware lab
+| # | Item | Status |
+|---|------|--------|
+| 1 | Real Logic **SBE codegen** | **DONE** — schema, generator script, committed headers, tests, tutorial |
+| 2 | Linux **numa + uring** + CI | **DONE** — APIs, tests, `linux-roadmap` CI job |
+| 3 | **HdrHistogram_c** wrapper | **DONE** — FetchContent + `ll::HdrHistogramC` |
+| 4 | **DPDK / Onload lab** | **DONE** as contract+stub+runbook (driver **GAP** by design) |
 
 This audit is the checklist for PRs: new work should move a row from **DOC/GAP → SHIPPED/OPTIONAL** with tests.

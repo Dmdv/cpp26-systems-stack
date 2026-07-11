@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Full C++26 systems mesh + roadmap (Homebrew ecosystem)
+  macos:
+    name: macOS full stack
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Homebrew deps
+        run: |
+          brew install cmake fmt spdlog tbb asio boost taskflow \
+            nlohmann-json simdjson eigen protobuf grpc range-v3 abseil \
+            catch2 googletest hwloc flatbuffers google-benchmark mimalloc
+      - name: Configure
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DLIB_SMOKE_WITH_FOLLY=OFF -DLIB_SMOKE_WITH_HPX=OFF
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.ncpu)
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.ncpu)
+      - name: Roadmap examples
+        run: |
+          ./build/example_sbe_codegen
+          ./build/example_numa_uring
+          ./build/example_hdr_c
+          ./build/example_kernel_bypass
+
+  # Focused Linux validation: SBE + NUMA + io_uring + HdrHistogram_c + bypass
+  linux-roadmap:
+    name: Linux numa/uring roadmap smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install NUMA / uring / build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake ninja-build libnuma-dev liburing-dev pkg-config
+      - name: Configure minimal roadmap smoke
+        run: |
+          cmake -S scripts/ci/linux_roadmap -B build-linux-roadmap -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+      - name: Build & test roadmap
+        run: |
+          cmake --build build-linux-roadmap -j$(nproc)
+          ctest --test-dir build-linux-roadmap --output-on-failure -j$(nproc)

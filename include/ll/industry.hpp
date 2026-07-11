@@ -5,13 +5,18 @@
 //
 // Feature macros (set by CMake):
 //   LL_HAS_HWLOC, LL_HAS_FLATBUFFERS, LL_HAS_MIMALLOC, LL_HAS_BENCHMARK,
-//   LL_HAS_MOODYCAMEL, LL_HAS_HDRHISTOGRAM_C, LL_HAS_LIBNUMA, LL_HAS_LIBURING
+//   LL_HAS_MOODYCAMEL, LL_HAS_HDRHISTOGRAM_C, LL_HAS_LIBNUMA, LL_HAS_LIBURING,
+//   LL_HAS_SBE_CODEGEN, LL_HAS_DPDK, LL_HAS_ONLOAD
 
 #include "ll/affinity.hpp"
 #include "ll/arena.hpp"
 #include "ll/branch.hpp"
 #include "ll/cache_line.hpp"
+#include "ll/hdr_c.hpp"
 #include "ll/hdr_histogram.hpp"
+#include "ll/kernel_bypass.hpp"
+#include "ll/linux_numa.hpp"
+#include "ll/linux_uring.hpp"
 #include "ll/pmr_arena.hpp"
 #include "ll/sbe_style.hpp"
 #include "ll/spsc_queue.hpp"
@@ -40,4 +45,17 @@
 #endif
 #ifndef LL_HAS_LIBURING
 #define LL_HAS_LIBURING 0
+#endif
+#ifndef LL_HAS_SBE_CODEGEN
+#define LL_HAS_SBE_CODEGEN 0
+#endif
+#ifndef LL_HAS_DPDK
+#define LL_HAS_DPDK 0
+#endif
+#ifndef LL_HAS_ONLOAD
+#define LL_HAS_ONLOAD 0
+#endif
+
+#if LL_HAS_SBE_CODEGEN
+#include "ll/sbe_codec.hpp"
 #endif

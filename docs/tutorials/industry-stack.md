@@ -199,13 +199,14 @@ CMake options (all default ON; disabled automatically when missing):
 
 ---
 
-## 7. What to build next (recommended order)
+## 7. Roadmap deep-dives (implemented)
 
-1. **Production wire path:** Real Logic SBE codegen for your venue schema.  
-2. **Linux box:** `libnuma` + `hwloc` binding + `isolcpus` runbook.  
-3. **Ingress:** `io_uring` for disk/log or DPDK lab if you own the NIC.  
-4. **Telemetry:** swap portable HDR for HdrHistogram_c + continuous p99 boards.  
-5. **Allocator:** mimalloc globally *only* after proving hot path is arena-only.
+| Topic | Tutorial |
+|-------|----------|
+| Real Logic SBE codegen | [sbe-codegen.md](sbe-codegen.md) |
+| Linux NUMA + io_uring | [linux-numa-uring.md](linux-numa-uring.md) |
+| HdrHistogram_c | [hdrhistogram-c.md](hdrhistogram-c.md) |
+| DPDK / Onload lab | [kernel-bypass-lab.md](kernel-bypass-lab.md) |
 
 ---
 
@@ -214,9 +215,12 @@ CMake options (all default ON; disabled automatically when missing):
 | Path | Purpose |
 |------|---------|
 | `include/ll/pmr_arena.hpp` | std::pmr wrappers |
-| `include/ll/hdr_histogram.hpp` | tail latency histogram |
-| `include/ll/sbe_style.hpp` | packed wire POD |
-| `schemas/tick.fbs` | FlatBuffers schema |
-| `tests/test_industry_stack.cpp` | industry Catch2 suite |
+| `include/ll/hdr_histogram.hpp` / `hdr_c.hpp` | portable + HdrHistogram_c |
+| `include/ll/sbe_style.hpp` / `sbe_codec.hpp` | POD + generated SBE |
+| `include/ll/linux_numa.hpp` / `linux_uring.hpp` | Linux backends |
+| `include/ll/kernel_bypass.hpp` | poll-mode RX contract |
+| `schemas/tick.fbs` · `sbe-market-data-schema.xml` | wire schemas |
+| `generated/sbe/` | committed SBE C++ codecs |
+| `tests/test_industry_stack.cpp` · `test_roadmap_stack.cpp` | suites |
 | `benchmarks/bench_queues.cpp` | Google Benchmark |
 | `docs/blueprint/07-industry-libraries.md` | layer ↔ library map |

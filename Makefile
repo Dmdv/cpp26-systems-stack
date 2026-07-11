@@ -118,7 +118,8 @@ examples:
 	@test -d $(BUILD_DIR) || $(MAKE) configure
 	$(CMAKE) --build $(BUILD_DIR) -j$(JOBS) --target \
 		example_spsc example_arena example_memory_order example_tsc \
-		example_pmr example_hdr example_sbe_style example_industry_queues
+		example_pmr example_hdr example_sbe_style example_industry_queues \
+		example_sbe_codegen example_numa_uring example_hdr_c example_kernel_bypass
 	@echo "== example_spsc =="
 	./$(BUILD_DIR)/example_spsc
 	@echo "== example_arena =="
@@ -135,6 +136,14 @@ examples:
 	./$(BUILD_DIR)/example_sbe_style
 	@echo "== example_industry_queues =="
 	./$(BUILD_DIR)/example_industry_queues
+	@echo "== example_sbe_codegen =="
+	./$(BUILD_DIR)/example_sbe_codegen
+	@echo "== example_numa_uring =="
+	./$(BUILD_DIR)/example_numa_uring
+	@echo "== example_hdr_c =="
+	./$(BUILD_DIR)/example_hdr_c
+	@echo "== example_kernel_bypass =="
+	./$(BUILD_DIR)/example_kernel_bypass
 
 bench:
 	@test -d $(BUILD_DIR) || $(MAKE) configure
