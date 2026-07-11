@@ -7,9 +7,14 @@ Mutexes put threads to sleep. Wakeups are **µs-class** events — fatal for tic
 | Topic | Module / doc |
 |-------|----------------|
 | SPSC ring | `ll::SpscQueue` |
+| **Boost.Lockfree** | `boost::lockfree::spsc_queue` (always linked) |
+| **moodycamel** | `ReaderWriterQueue` (FetchContent, optional) |
+| **folly::ProducerConsumerQueue** | Folly profile |
 | Memory orders | This page + `examples/memory_order` |
 | Single-thread actor path | Design section |
 | Higher-level graphs | Taskflow, TBB, stdexec (library layer) |
+
+Compare queues: `./build/example_industry_queues` · `make bench`.
 
 ## SPSC algorithm
 

@@ -11,6 +11,10 @@ Low-latency C++ is **hardware-sympathetic**. Jitter from the OS often dominates 
 | NUMA | Cross-socket memory is a silent multi-µs tax | `numactl` notes |
 | Power states | C-state wakeups add µs–ms | BIOS + governor notes |
 | Hugepages | Fewer TLB misses on large rings/arenas | Operator notes |
+| **hwloc** | Portable topology (cores, caches, NUMA) | **OPTIONAL** — `[industry][hwloc]` |
+| **libnuma** | Bind allocations to local socket | Linux soft-detect / **DOC** |
+
+Industry install: `brew install hwloc` · full map: [07-industry-libraries.md](07-industry-libraries.md).
 
 ## Linux isolation (lab machines)
 

@@ -8,10 +8,10 @@
 #   make docs            # list library guides
 
 .PHONY: help all configure configure-folly configure-hpx configure-full \
-	build rebuild test run smoke examples \
+	build rebuild test run smoke examples bench \
 	folly hpx full clean distclean \
 	reconfigure compile-commands \
-	install-folly install-hpx deps-check docs
+	install-folly install-hpx install-industry deps-check docs
 
 # ---------------------------------------------------------------------------
 # Config
@@ -47,7 +47,8 @@ help:
 	@echo "  make rebuild        Clean + configure + build + test"
 	@echo "  make test           ctest in BUILD_DIR"
 	@echo "  make run / smoke    Run lib_smoke binary"
-	@echo "  make examples       Build+run ll blueprint examples (spsc/arena/tsc/…)"
+	@echo "  make examples       Build+run ll + industry examples"
+	@echo "  make bench          Build+run Google Benchmark queue microbenches"
 	@echo "  make clean          Remove object files (keep CMake cache)"
 	@echo "  make distclean      Remove all build_* trees"
 	@echo ""
@@ -58,12 +59,13 @@ help:
 	@echo "  make configure-folly / configure-hpx / configure-full"
 	@echo ""
 	@echo "Dependencies"
-	@echo "  make deps-check     Show Homebrew + HPX install status"
+	@echo "  make deps-check     Show Homebrew + HPX + industry install status"
 	@echo "  make install-folly  brew install folly"
 	@echo "  make install-hpx    Build/install HPX to HPX_ROOT ($(HPX_ROOT))"
+	@echo "  make install-industry  brew: hwloc flatbuffers google-benchmark mimalloc"
 	@echo ""
 	@echo "Docs"
-	@echo "  make docs           List library guides + low-latency blueprint"
+	@echo "  make docs           List library guides + blueprint + tutorials"
 	@echo ""
 	@echo "Variables: BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_DIR=$(BUILD_DIR)"
 	@echo "           HPX_ROOT=$(HPX_ROOT) HOMEBREW_PREFIX=$(HOMEBREW_PREFIX)"
@@ -115,7 +117,8 @@ run smoke:
 examples:
 	@test -d $(BUILD_DIR) || $(MAKE) configure
 	$(CMAKE) --build $(BUILD_DIR) -j$(JOBS) --target \
-		example_spsc example_arena example_memory_order example_tsc
+		example_spsc example_arena example_memory_order example_tsc \
+		example_pmr example_hdr example_sbe_style example_industry_queues
 	@echo "== example_spsc =="
 	./$(BUILD_DIR)/example_spsc
 	@echo "== example_arena =="
@@ -124,6 +127,23 @@ examples:
 	./$(BUILD_DIR)/example_memory_order
 	@echo "== example_tsc =="
 	./$(BUILD_DIR)/example_tsc
+	@echo "== example_pmr =="
+	./$(BUILD_DIR)/example_pmr
+	@echo "== example_hdr =="
+	./$(BUILD_DIR)/example_hdr
+	@echo "== example_sbe_style =="
+	./$(BUILD_DIR)/example_sbe_style
+	@echo "== example_industry_queues =="
+	./$(BUILD_DIR)/example_industry_queues
+
+bench:
+	@test -d $(BUILD_DIR) || $(MAKE) configure
+	@if $(CMAKE) --build $(BUILD_DIR) -j$(JOBS) --target bench_queues 2>/dev/null; then \
+		./$(BUILD_DIR)/bench_queues --benchmark_min_time=0.1s; \
+	else \
+		echo "bench_queues not configured (brew install google-benchmark && reconfigure)"; \
+		exit 1; \
+	fi
 
 # Convenience stacks (own build dirs)
 folly: configure-folly
@@ -159,7 +179,7 @@ distclean:
 # Dependencies
 # ---------------------------------------------------------------------------
 deps-check:
-	@echo "== Homebrew =="
+	@echo "== Homebrew (base) =="
 	@brew --prefix >/dev/null 2>&1 && echo "  brew: $(HOMEBREW_PREFIX)" || echo "  brew: MISSING"
 	@for p in fmt spdlog tbb asio boost taskflow folly catch2 googletest \
 		nlohmann-json simdjson eigen protobuf grpc range-v3 abseil; do \
@@ -167,6 +187,14 @@ deps-check:
 			printf "  %-16s %s\n" "$$p" "$$(brew list --versions $$p)"; \
 		else \
 			printf "  %-16s MISSING\n" "$$p"; \
+		fi; \
+	done
+	@echo "== Homebrew (industry / low-latency) =="
+	@for p in hwloc flatbuffers google-benchmark mimalloc jemalloc; do \
+		if brew list --versions $$p >/dev/null 2>&1; then \
+			printf "  %-16s %s\n" "$$p" "$$(brew list --versions $$p)"; \
+		else \
+			printf "  %-16s MISSING (make install-industry)\n" "$$p"; \
 		fi; \
 	done
 	@echo "== HPX (local) =="
@@ -178,6 +206,9 @@ deps-check:
 
 install-folly:
 	brew install folly
+
+install-industry:
+	brew install hwloc flatbuffers google-benchmark mimalloc
 
 install-hpx:
 	@chmod +x scripts/install_hpx.sh
@@ -193,6 +224,10 @@ docs:
 	@echo "Low-latency blueprint (docs/blueprint/):"
 	@ls -1 docs/blueprint/*.md 2>/dev/null | sed 's|^|  |' || echo "  (none yet)"
 	@echo ""
+	@echo "Tutorials (docs/tutorials/):"
+	@ls -1 docs/tutorials/*.md 2>/dev/null | sed 's|^|  |' || echo "  (none yet)"
+	@echo ""
 	@echo "Start here: docs/libraries/README.md"
 	@echo "LL audit:   docs/blueprint/AUDIT.md"
+	@echo "Industry:   docs/tutorials/industry-stack.md"
 	@echo "LL focus:   docs/blueprint/README.md"

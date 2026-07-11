@@ -10,8 +10,15 @@ HFT and ULL systems live and die on **tails**.
 | Cycle counters | `ll::read_tsc()` (RDTSC / `cntvct_el0`) |
 | Wall-ish mono ns | `ll::steady_ns()` |
 | Fixed sample buffer | `ll::LatencyBuffer<N>` |
-| p50/p90/p99/p99.9/max | Offline analysis (HDR histogram roadmap) |
+| **HDR-style histogram** | `ll::HdrLatencyHistogram` — p50/p99/p99.9/max |
+| **Google Benchmark** | `bench_queues` (optional package) |
+| **HdrHistogram_c** | Production-grade upgrade path (**DOC**) |
 | `perf` PMCs | Operator guide below |
+
+```bash
+./build/example_hdr
+make bench
+```
 
 ## Timestamps
 

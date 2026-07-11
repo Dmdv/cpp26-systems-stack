@@ -1,0 +1,14 @@
+// FlatBuffers schema for zero-copy market tick access.
+// Generated C++ header is produced at configure/build via flatc.
+
+namespace market;
+
+table Tick {
+  symbol:string;
+  price:double;
+  qty:double;
+  ts_ns:ulong;
+  seq:uint;
+}
+
+root_type Tick;

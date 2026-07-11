@@ -5,16 +5,17 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#dependencies)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Integration laboratory for a modern C++26 systems ecosystem** — async I/O, HTTP/WebSocket, task graphs, data-parallel runtimes, sender/receiver composition, high-performance JSON, schema/RPC, optional service foundations (Folly, HPX), plus portable **low-latency primitives** under `include/ll/`.
+**Integration laboratory for a modern C++26 systems ecosystem** — async I/O, HTTP/WebSocket, task graphs, data-parallel runtimes, sender/receiver composition, high-performance JSON, schema/RPC, optional service foundations (Folly, HPX), portable **low-latency primitives** under `include/ll/`, and **industry libraries** (hwloc, FlatBuffers, moodycamel, Boost.Lockfree, std::pmr, mimalloc, Google Benchmark).
 
-This repository is **not** a toy “hello world” collection. It is a **buildable reference stack**: CMake-wired dependencies, executable integration binary, Catch2/GTest suites, architecture-oriented library guides, and a six-layer low-latency **blueprint audit**.
+This repository is **not** a toy “hello world” collection. It is a **buildable reference stack**: CMake-wired dependencies, executable integration binary, Catch2/GTest suites, microbenchmarks, architecture guides, and a six-layer low-latency **blueprint audit**.
 
 | | |
 |--|--|
 | **Language** | ISO C++26 (`CMAKE_CXX_STANDARD 26`) |
 | **Build** | CMake 3.28+ · Make wrapper |
-| **Package sources** | Homebrew (base) · FetchContent (`stdexec`) · optional local HPX |
-| **Low-latency core** | Header-only `ll::*` (SPSC, arena/pool, TSC, affinity, branch/CRTP) |
+| **Package sources** | Homebrew (base + industry) · FetchContent (`stdexec`, moodycamel) · optional HPX |
+| **Low-latency core** | `ll::*` — SPSC, arena/pmr, HDR histogram, SBE-style wire, TSC, affinity |
+| **Industry optional** | hwloc · FlatBuffers · mimalloc · Google Benchmark · Boost.Lockfree · moodycamel |
 | **Monorepo** | Submodule of private [`Dmdv/cpp_agents_benchmark`](https://github.com/Dmdv/cpp_agents_benchmark) as `systems_stack/` |
 
 ---
@@ -23,20 +24,23 @@ This repository is **not** a toy “hello world” collection. It is a **buildab
 
 Audited against the industry low-latency checklist (hardware/OS → kernel bypass → memory → concurrency → compiler → telemetry):
 
-> **Center of gravity: concurrency + memory architecture + the C++26 library mesh**  
-> (SPSC / atomics, arenas & cache-line layout, Asio/Beast/Taskflow/TBB/stdexec/simdjson/gRPC)  
-> with hardware/OS and kernel-bypass documented as the surrounding envelope — not productized NIC drivers.
+> **Center of gravity: concurrency + memory + C++26 library mesh**, wired to **industry standards**  
+> (`ll`/Boost/moodycamel queues, std::pmr arenas, hwloc, FlatBuffers/SBE-style, HDR + Google Benchmark)  
+> Kernel bypass (DPDK/Onload) remains a documented envelope — not a NIC driver product.
 
 | Rank | Layer | Status in this repo |
 |------|--------|---------------------|
-| **1** | §4 Concurrency + §3 Memory | **SHIPPED** — `ll/spsc_queue`, `ll/arena`, `ll/cache_line` + tests/examples |
+| **1** | §4 Concurrency + §3 Memory | **SHIPPED** — `ll` SPSC, Boost.Lockfree, moodycamel*, pmr/arena, cache lines |
 | **2** | C++26 library mesh (I/O, parse, schedule, RPC) | **SHIPPED** — full integration binary + suites |
-| **3** | §6 Telemetry primitives | **SHIPPED** — `ll/tsc_clock`, fixed `LatencyBuffer`; full HDR **GAP** |
-| **4** | §1 Hardware/OS + §5 Compiler | **DOC** / partial API — affinity, flags, i-cache discipline |
-| **5** | §2 Kernel bypass (DPDK / Onload / SBE) | **GAP** (documented boundary) |
+| **3** | §6 Telemetry | **SHIPPED** — TSC, `HdrLatencyHistogram`, Google Benchmark* |
+| **4** | §1 Hardware/OS + §2 portable serde | **OPTIONAL/SHIPPED** — hwloc*, SBE-style, FlatBuffers* |
+| **5** | §2 Kernel bypass (DPDK / Onload) | **GAP** (documented boundary) |
 
-Full checklist: [`docs/blueprint/AUDIT.md`](docs/blueprint/AUDIT.md) · layer guides: [`docs/blueprint/`](docs/blueprint/).
+\*auto-enabled when the package is installed (`make install-industry`).
 
+**Recommended next investment:** Real Logic SBE codegen for production schemas · Linux numa/uring CI · optional HdrHistogram_c.
+
+Full checklist: [`docs/blueprint/AUDIT.md`](docs/blueprint/AUDIT.md) · industry map: [`docs/blueprint/07-industry-libraries.md`](docs/blueprint/07-industry-libraries.md) · tutorial: [`docs/tutorials/industry-stack.md`](docs/tutorials/industry-stack.md).
 ---
 
 ## Ecosystem map
@@ -98,19 +102,20 @@ flowchart LR
 
 ```text
 .
-├── CMakeLists.txt          # C++26 project · optional Folly/HPX · ll_headers
-├── Makefile                # developer workflows (base / folly / hpx / full / examples)
-├── include/ll/             # portable low-latency headers (SPSC, arena, TSC, …)
-├── examples/               # blueprint demos (spsc, arena, memory_order, tsc)
+├── CMakeLists.txt          # C++26 · Folly/HPX · ll + industry STACK_WITH_*
+├── Makefile                # base / folly / hpx / full / examples / bench
+├── include/ll/             # SPSC, arena, pmr, HDR, SBE-style, TSC, affinity
+├── schemas/tick.fbs        # FlatBuffers sample schema
+├── examples/               # spsc, arena, pmr, hdr, sbe_style, industry_queues, …
+├── benchmarks/             # Google Benchmark (bench_queues)
 ├── proto/smoke.proto       # sample protobuf message
 ├── src/main.cpp            # integration binary: one-shot stack exercise
-├── src/folly_compat.hpp    # Folly + libc++ coexistence helpers
-├── tests/                  # Catch2 + GTest + test_ll_modules
-├── scripts/install_hpx.sh  # local HPX bootstrap (not on Homebrew)
+├── tests/                  # Catch2 + GTest + ll + industry suites
+├── scripts/install_hpx.sh  # local HPX bootstrap
 ├── docs/libraries/         # per-component architecture notes
-└── docs/blueprint/         # six-layer low-latency audit + guides
+├── docs/blueprint/         # six-layer audit + industry library map
+└── docs/tutorials/         # hands-on industry-stack tutorial
 ```
-
 ---
 
 ## Component catalog
@@ -143,12 +148,32 @@ Full library index: [`docs/libraries/README.md`](docs/libraries/README.md).
 | Cache-line constants | `ll/cache_line.hpp` | §3 Memory | `ctest -R ll` |
 | SPSC ring buffer | `ll/spsc_queue.hpp` | §4 Concurrency | `test_ll_modules` · `make examples` |
 | Arena / object pool | `ll/arena.hpp` | §3 Memory | `[ll][arena]` · `example_arena` |
+| **std::pmr** arenas | `ll/pmr_arena.hpp` | §3 Memory | `[industry][pmr]` · `example_pmr` |
+| **HDR histogram** | `ll/hdr_histogram.hpp` | §6 Telemetry | `[industry][hdr]` · `example_hdr` |
+| **SBE-style wire** | `ll/sbe_style.hpp` | §2 Serde | `[industry][sbe]` · `example_sbe_style` |
 | TSC / latency samples | `ll/tsc_clock.hpp` | §6 Telemetry | `[ll][tsc]` · `example_tsc` |
 | Thread affinity / QoS | `ll/affinity.hpp` | §1 Hardware/OS | `[ll][affinity]` |
 | Branch / CRTP helpers | `ll/branch.hpp` | §5 Compiler | `[ll][branch]` |
+| Industry umbrella | `ll/industry.hpp` | all | feature macros `LL_HAS_*` |
 
-Blueprint narrative: [`docs/blueprint/LOW_LATENCY_STACK.md`](docs/blueprint/LOW_LATENCY_STACK.md).
+### Industry libraries (auto-detect)
 
+| Library | Layer | CMake / install | Validation |
+|---------|-------|-----------------|------------|
+| **Boost.Lockfree** | §4 | always (Boost required) | `[industry][boost_lockfree]` |
+| **moodycamel** ReaderWriterQueue | §4 | FetchContent (`STACK_WITH_MOODYCAMEL`) | `[industry][moodycamel]` |
+| **hwloc** | §1 | `brew install hwloc` | `[industry][hwloc]` |
+| **FlatBuffers** | §2 | `brew install flatbuffers` | `[industry][flatbuffers]` |
+| **mimalloc** | §3 off-path | `brew install mimalloc` | `[industry][mimalloc]` |
+| **Google Benchmark** | §6 | `brew install google-benchmark` | `make bench` |
+| **libnuma / liburing** | §1 / §2 | Linux packages | soft-detect |
+| **DPDK / OpenOnload / SBE tool / struct_pack** | §2 | — | **DOC/GAP** — see tutorial |
+
+```bash
+make install-industry   # hwloc flatbuffers google-benchmark mimalloc
+```
+
+Blueprint: [`docs/blueprint/`](docs/blueprint/) · Tutorial: [`docs/tutorials/industry-stack.md`](docs/tutorials/industry-stack.md).
 ---
 
 ## Language & toolchain
@@ -179,11 +204,18 @@ brew install cmake fmt spdlog tbb asio boost taskflow \
   range-v3 abseil catch2 googletest
 ```
 
-### Optional
+### Optional — service / parallel runtimes
 
 ```bash
 brew install folly
 make install-hpx          # local prefix, default ~/cpp-deps/hpx
+```
+
+### Optional — industry low-latency
+
+```bash
+make install-industry     # hwloc flatbuffers google-benchmark mimalloc
+# Linux: libnuma-dev liburing-dev (soft-detected)
 ```
 
 ### Status check
@@ -191,7 +223,6 @@ make install-hpx          # local prefix, default ~/cpp-deps/hpx
 ```bash
 make deps-check
 ```
-
 ---
 
 ## Build
@@ -208,8 +239,11 @@ make full                 # Folly + HPX
 # Integration binary
 make run
 
-# Low-latency blueprint examples (SPSC, arena, memory_order, TSC)
+# Low-latency + industry examples
 make examples
+
+# Queue microbenchmarks (requires google-benchmark)
+make bench
 
 # IDE / clangd
 make compile-commands
@@ -219,12 +253,14 @@ make compile-commands
 |-------------|--------|
 | `make` / `all` | Base configure, build, test |
 | `make run` | Execute integration binary |
-| `make examples` | Build and run `ll` demos |
+| `make examples` | Build and run `ll` + industry demos |
+| `make bench` | Google Benchmark (`bench_queues`) |
 | `make test` | `ctest` in current `BUILD_DIR` |
 | `make folly` / `hpx` / `full` | Optional stacks |
+| `make install-industry` | Homebrew industry packages |
 | `make distclean` | Remove all `build*` trees |
-| `make deps-check` | Inventory Homebrew + HPX |
-| `make docs` | List library + blueprint guides |
+| `make deps-check` | Inventory Homebrew + industry + HPX |
+| `make docs` | List library + blueprint + tutorials |
 
 CMake options:
 
@@ -256,39 +292,47 @@ One process walks the stack end-to-end and prints `[PASS]` / `[FAIL]` per check:
 | `test_taskflow` | Catch2 | Task graph execution |
 | `test_libs` | Catch2 | fmt, TBB, simdjson, nlohmann, Eigen, Abseil, ranges, protobuf, stdexec |
 | `test_ll_modules` | Catch2 | SPSC stress, arena/pool, TSC, affinity, CRTP |
+| `test_industry_stack` | Catch2 | pmr, HDR, SBE-style, Boost.Lockfree, moodycamel/hwloc/FB/mimalloc* |
 | `test_gtest_smoke` | GTest | Framework install sanity |
 | `test_folly` | Catch2 | Folly (optional profile) |
 | `test_hpx` | Catch2 | HPX (optional profile) |
 
 ```bash
 ctest --test-dir build --output-on-failure
-ctest --test-dir build -R 'll|simdjson'
+ctest --test-dir build -R 'll|industry|simdjson'
 ```
 
-### Blueprint examples
+### Blueprint & industry examples
 
 | Binary | Topic |
 |--------|--------|
 | `example_spsc` | Producer/consumer handoff via lock-free ring |
 | `example_arena` | Bump-pointer temporary state (no malloc on path) |
+| `example_pmr` | `std::pmr` monotonic arena windows |
+| `example_hdr` | p50 / p99 / p99.9 / max latency printout |
+| `example_sbe_style` | Packed 16-byte wire tick |
+| `example_industry_queues` | `ll` vs Boost.Lockfree vs moodycamel |
 | `example_memory_order` | acquire/release flag handoff |
 | `example_tsc` | Cycle/ns timestamps around a tight kernel |
+| `bench_queues` | Google Benchmark comparison |
 
 ```bash
 make examples
+make bench
 ```
 
 ---
 
 ## Design principles
 
-1. **C++26 first** — standard-library direction (senders/receivers, jthread, etc.) coexists with industry libs.  
+1. **C++26 first** — standard-library direction (senders/receivers, jthread, `std::pmr`) coexists with industry libs.  
 2. **Composable layers** — I/O, parse, schedule, compute, RPC are separate concerns.  
-3. **Low-latency honesty** — ship portable primitives (§3/§4/§6); document OS noise and kernel bypass without pretending every layer is a driver product.  
-4. **Keep the hot path small** — i-cache discipline and single-thread/actor paths are first-class design reviews (see blueprint).  
-5. **Measurable integration** — every package has either a unit in `test_libs` / `test_ll_modules` or a dedicated suite; prefer p99/max over mean.  
-6. **Optional heavyweights** — Folly/HPX do not tax the default configure path.  
-7. **Production-minded wiring** — real `find_package`, protobuf generation, and known macOS Folly/Beast coexistence constraints documented in CMake.
+3. **Don’t reinvent every wheel** — prefer verified queues (Boost.Lockfree, moodycamel), topology (hwloc), and serde (FlatBuffers/SBE) where they fit.  
+4. **Low-latency honesty** — ship portable primitives; auto-enable industry deps; document OS noise and kernel bypass without claiming DPDK ownership.  
+5. **Keep the hot path small** — i-cache discipline and single-thread/actor paths are first-class design reviews.  
+6. **Measurable integration** — Catch2 suites + Google Benchmark; prefer **p99 / p99.9 / max** over mean.  
+7. **Optional heavyweights** — Folly/HPX/mimalloc/benchmark do not break the default path when missing.  
+8. **Production-minded wiring** — real `find_package`, protobuf + flatc generation, Folly/Beast coexistence notes in CMake.
 
 ---
 

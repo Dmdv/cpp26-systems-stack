@@ -8,20 +8,28 @@
 | Topic | Module |
 |-------|--------|
 | Arena / bump allocation | `ll::Arena` |
+| **std::pmr** monotonic / unsync pool | `ll::PmrMonotonicArena`, `ll::PmrUnsyncPool` |
 | Object pools | `ll::ObjectPool<T,N>` |
 | Cache-line padding | `ll::kCacheLine`, `CacheLinePadded` |
 | False sharing on queues | SPSC head/tail `alignas` |
+| **mimalloc / jemalloc** | Off critical path only (**OPTIONAL**/DOC) |
 | AoS vs SoA | Guidance below |
 
 ## Zero allocation on the critical path
 
 ```cpp
 #include "ll/arena.hpp"
+#include "ll/pmr_arena.hpp"
 
 ll::Arena arena(1 << 20);  // pre-size at startup
 // per message / window:
 arena.reset();
 auto* tmp = arena.create<MyState>(/*...*/);
+
+// Or standard pmr:
+ll::PmrMonotonicArena pmr(1 << 20);
+auto* x = pmr.create<MyState>(/*...*/);
+pmr.release();
 ```
 
 ```cpp

@@ -12,6 +12,10 @@ Ultra-low-latency shops poll NIC rings from user space.
 | Zero-copy mindset | Asio buffer sequences; POD decode |
 | Hot-path encoding | Prefer POD / SBE over JSON/Protobuf text |
 | Practical ingress libs | **Asio, Beast, gRPC** shipped & tested |
+| **FlatBuffers** | Zero-copy tables | **OPTIONAL** (`schemas/tick.fbs`) |
+| **SBE-style POD** | Packed wire cast | **SHIPPED** (`ll/sbe_style.hpp`) |
+| **liburing** | Modern async I/O | Linux soft-detect |
+| **struct_pack** | Compile-time pack | **DOC** (not vendored) |
 
 ## What this repository *does* ship
 
@@ -21,6 +25,8 @@ Ultra-low-latency shops poll NIC rings from user space.
 | **Beast** | HTTP / WebSocket on Asio |
 | **simdjson** | When JSON cannot be avoided |
 | **protobuf + gRPC** | Service edges, not tick-to-trade hot path |
+| **ll::sbe::TickMsg** | 16-byte packed demo (Real Logic SBE for prod schemas) |
+| **FlatBuffers** | Zero-copy `market.Tick` when flatc is installed |
 
 See `docs/libraries/asio.md`, `beast.md`, `simdjson.md`, `grpc-protobuf.md`.
 
