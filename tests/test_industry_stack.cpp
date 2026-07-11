@@ -1,9 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "ll/hdr_histogram.hpp"
+#include "ll/jemalloc_util.hpp"
+#include "ll/kernel_bypass.hpp"
 #include "ll/pmr_arena.hpp"
 #include "ll/sbe_style.hpp"
 #include "ll/spsc_queue.hpp"
+#include "ll/struct_pack_tick.hpp"
 
 #include <boost/lockfree/spsc_queue.hpp>
 
@@ -217,6 +220,78 @@ TEST_CASE("mimalloc allocate free", "[industry][mimalloc]") {
   mi_free(p);
 }
 #endif
+
+// ---------------------------------------------------------------------------
+// jemalloc off-critical-path allocator
+// ---------------------------------------------------------------------------
+
+#if LL_HAS_JEMALLOC
+TEST_CASE("jemalloc allocate free and version", "[industry][jemalloc]") {
+  REQUIRE(ll::je::available());
+  void* p = ll::je::malloc_bytes(256);
+  REQUIRE(p != nullptr);
+  std::memset(p, 0xCD, 256);
+  ll::je::free_bytes(p);
+  REQUIRE_FALSE(ll::je::version_string().empty());
+}
+#endif
+
+// ---------------------------------------------------------------------------
+// struct_pack (yalantinglibs)
+// ---------------------------------------------------------------------------
+
+#if LL_HAS_STRUCT_PACK
+TEST_CASE("struct_pack tick serialize deserialize", "[industry][struct_pack]") {
+  REQUIRE(ll::sp::available());
+  ll::sp::Tick in{.instrument_id = 7,
+                  .price_ticks = 1902500,
+                  .qty = 3,
+                  .seq = 99,
+                  .ts_ns = 42};
+  auto buf = ll::sp::serialize(in);
+  REQUIRE_FALSE(buf.empty());
+  ll::sp::Tick out{};
+  REQUIRE(ll::sp::deserialize(buf, out));
+  REQUIRE(out == in);
+}
+#endif
+
+// ---------------------------------------------------------------------------
+// folly::ProducerConsumerQueue (when Folly is installed)
+// ---------------------------------------------------------------------------
+
+#if LL_HAS_FOLLY_PCQ
+#include <folly/ProducerConsumerQueue.h>
+
+TEST_CASE("folly ProducerConsumerQueue in industry suite", "[industry][folly_pcq]") {
+  folly::ProducerConsumerQueue<int> q(64);
+  REQUIRE(q.write(11));
+  int v = 0;
+  REQUIRE(q.read(v));
+  REQUIRE(v == 11);
+}
+#endif
+
+// ---------------------------------------------------------------------------
+// Kernel-bypass capabilities (DPDK/Onload detect or stub)
+// ---------------------------------------------------------------------------
+
+TEST_CASE("kernel bypass capabilities and stub rx", "[industry][bypass]") {
+  const auto caps = ll::bypass::capabilities();
+  REQUIRE(caps.stub);
+  // On typical developer laptops both remain false (no NIC SDK).
+  (void)caps.dpdk;
+  (void)caps.onload;
+  REQUIRE_FALSE(ll::bypass::preferred_backend_name().empty());
+
+  auto rx = ll::bypass::make_default_rx();
+  REQUIRE(rx.open(0, 0));
+  std::byte payload[4]{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
+  rx.inject_for_test(payload);
+  ll::bypass::PacketView views[2]{};
+  REQUIRE(rx.poll(views) == 1);
+  REQUIRE(views[0].length == 4);
+}
 
 // Cross-check: ll SPSC still coexists with industry queues
 TEST_CASE("ll spsc still works alongside industry suite", "[industry][ll]") {

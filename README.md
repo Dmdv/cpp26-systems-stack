@@ -5,7 +5,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#dependencies)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Integration laboratory for a modern C++26 systems ecosystem** — async I/O, HTTP/WebSocket, task graphs, data-parallel runtimes, sender/receiver composition, high-performance JSON, schema/RPC, optional service foundations (Folly, HPX), portable **low-latency primitives** under `include/ll/`, and **industry libraries** (hwloc, FlatBuffers, moodycamel, Boost.Lockfree, std::pmr, mimalloc, Google Benchmark).
+**Integration laboratory for a modern C++26 systems ecosystem** — async I/O, HTTP/WebSocket, task graphs, data-parallel runtimes, sender/receiver composition, high-performance JSON, schema/RPC, optional service foundations (Folly, HPX), portable **low-latency primitives** under `include/ll/`, and **industry libraries** (hwloc, FlatBuffers, SBE, struct_pack, moodycamel, Boost.Lockfree, Folly PCQ, std::pmr, mimalloc, jemalloc, HdrHistogram, Google Benchmark; DPDK/Onload detect + stub RX).
 
 This repository is **not** a toy “hello world” collection. It is a **buildable reference stack**: CMake-wired dependencies, executable integration binary, Catch2/GTest suites, microbenchmarks, architecture guides, and a six-layer low-latency **blueprint audit**.
 
@@ -15,7 +15,7 @@ This repository is **not** a toy “hello world” collection. It is a **buildab
 | **Build** | CMake 3.28+ · Make wrapper · **CMakePresets** (CLion) |
 | **Package sources** | Homebrew (base + industry) · FetchContent (`stdexec`, moodycamel) · optional HPX |
 | **Low-latency core** | `ll::*` — SPSC, arena/pmr, HDR histogram, SBE-style wire, TSC, affinity |
-| **Industry optional** | hwloc · FlatBuffers · mimalloc · Google Benchmark · Boost.Lockfree · moodycamel |
+| **Industry optional** | hwloc · FlatBuffers · SBE · struct_pack · mimalloc · jemalloc · Folly PCQ · Benchmark · DPDK/Onload detect |
 | **IDE** | CLion: preset `clion-debug` + target `ide_index` — see [docs/clion.md](docs/clion.md) |
 | **Monorepo** | Submodule of private [`Dmdv/cpp_agents_benchmark`](https://github.com/Dmdv/cpp_agents_benchmark) as `systems_stack/` |
 
@@ -188,15 +188,18 @@ Full library index: [`docs/libraries/README.md`](docs/libraries/README.md).
 | **hwloc** | §1 | `brew install hwloc` | `[industry][hwloc]` |
 | **FlatBuffers** | §2 | `brew install flatbuffers` | `[industry][flatbuffers]` |
 | **mimalloc** | §3 off-path | `brew install mimalloc` | `[industry][mimalloc]` |
+| **jemalloc** | §3 off-path | `brew install jemalloc` | `[industry][jemalloc]` |
+| **struct_pack** | §2 serde | FetchContent yalantinglibs | `[industry][struct_pack]` · `example_struct_pack` |
+| **folly::PCQ** | §4 | auto if Folly installed | `[industry][folly_pcq]` / `make folly` |
 | **Google Benchmark** | §6 | `brew install google-benchmark` | `make bench` |
 | **libnuma / liburing** | §1 / §2 | Linux packages | soft-detect + Linux CI smoke |
 | **HdrHistogram_c** | §6 | FetchContent | default ON |
 | **Real Logic SBE tool** | §2 | `./scripts/generate_sbe.sh` | committed generated headers |
-| **DPDK / OpenOnload** | §2 | lab NIC only | contract + runbook (**no SDK linked**) |
-| **struct_pack** | §2 | — | **DOC** |
+| **DPDK / OpenOnload** | §2 | optional detect if installed | stub RX always; SDK when present |
 
 ```bash
-make install-industry   # hwloc flatbuffers google-benchmark mimalloc
+make install-industry   # hwloc flatbuffers google-benchmark mimalloc jemalloc
+brew install folly      # optional: folly::ProducerConsumerQueue tests
 ```
 
 Blueprint: [`docs/blueprint/`](docs/blueprint/) · Tutorial: [`docs/tutorials/industry-stack.md`](docs/tutorials/industry-stack.md).
@@ -335,7 +338,7 @@ One process walks the stack end-to-end and prints `[PASS]` / `[FAIL]` per check:
 | `test_taskflow` | Catch2 | Task graph execution |
 | `test_libs` | Catch2 | fmt, TBB, simdjson, nlohmann, Eigen, Abseil, ranges, protobuf, stdexec |
 | `test_ll_modules` | Catch2 | SPSC stress, arena/pool, TSC, affinity, CRTP |
-| `test_industry_stack` | Catch2 | pmr, HDR, SBE-style, Boost.Lockfree, moodycamel/hwloc/FB/mimalloc* |
+| `test_industry_stack` | Catch2 | pmr, SBE, struct_pack, queues, allocators, bypass caps, … |
 | `test_roadmap_stack` | Catch2 | SBE codegen, numa, uring, HdrHistogram_c, bypass stub |
 | `test_gtest_smoke` | GTest | Framework install sanity |
 | `test_folly` | Catch2 | Folly (optional profile) |

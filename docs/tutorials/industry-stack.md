@@ -70,7 +70,7 @@ Not linked on macOS; see `01-hardware-os.md`. Soft-detect via `STACK_WITH_LIBNUM
 | **Asio / Beast** | Portable sockets / HTTP / WS | **SHIPPED** |
 | **SBE (Real Logic)** | Wire-speed binary codecs | **SBE-style POD** demo + generate-with-SBE guide |
 | **FlatBuffers** | Zero-copy tables | **SHIPPED** when `flatbuffers` + `flatc` installed |
-| **struct_pack** | Compile-time C++20 pack | Documented alternative (not vendored) |
+| **struct_pack** | Compile-time C++20 pack | **SHIPPED** — yalantinglibs FetchContent · `example_struct_pack` |
 
 ### SBE-style packed tick
 

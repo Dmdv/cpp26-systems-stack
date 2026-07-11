@@ -137,7 +137,8 @@ examples:
 	$(CMAKE) --build $(BUILD_DIR) -j$(JOBS) --target \
 		example_spsc example_arena example_memory_order example_tsc \
 		example_pmr example_hdr example_sbe_style example_industry_queues \
-		example_sbe_codegen example_numa_uring example_hdr_c example_kernel_bypass
+		example_sbe_codegen example_numa_uring example_hdr_c example_kernel_bypass \
+		example_struct_pack
 	@echo "== example_spsc =="
 	./$(BUILD_DIR)/example_spsc
 	@echo "== example_arena =="
@@ -162,6 +163,8 @@ examples:
 	./$(BUILD_DIR)/example_hdr_c
 	@echo "== example_kernel_bypass =="
 	./$(BUILD_DIR)/example_kernel_bypass
+	@echo "== example_struct_pack =="
+	./$(BUILD_DIR)/example_struct_pack
 
 bench:
 	@test -d $(BUILD_DIR) || $(MAKE) configure
@@ -258,7 +261,8 @@ examples-ninja:
 	$(CMAKE) --build $(BUILD_NINJA) -j$(JOBS) --target \
 		example_spsc example_arena example_memory_order example_tsc \
 		example_pmr example_hdr example_sbe_style example_industry_queues \
-		example_sbe_codegen example_numa_uring example_hdr_c example_kernel_bypass
+		example_sbe_codegen example_numa_uring example_hdr_c example_kernel_bypass \
+		example_struct_pack
 	@echo "== example_spsc =="; ./$(BUILD_NINJA)/example_spsc
 	@echo "== example_arena =="; ./$(BUILD_NINJA)/example_arena
 	@echo "== example_memory_order =="; ./$(BUILD_NINJA)/example_memory_order
@@ -271,6 +275,7 @@ examples-ninja:
 	@echo "== example_numa_uring =="; ./$(BUILD_NINJA)/example_numa_uring
 	@echo "== example_hdr_c =="; ./$(BUILD_NINJA)/example_hdr_c
 	@echo "== example_kernel_bypass =="; ./$(BUILD_NINJA)/example_kernel_bypass
+	@echo "== example_struct_pack =="; ./$(BUILD_NINJA)/example_struct_pack
 
 ninja: configure-ninja build-ninja test-ninja
 	@echo "Ninja path OK — binaries in $(BUILD_NINJA)/"
@@ -306,11 +311,11 @@ deps-check:
 		fi; \
 	done
 	@echo "== Homebrew (industry / low-latency) =="
-	@for p in hwloc flatbuffers google-benchmark mimalloc jemalloc; do \
+	@for p in hwloc flatbuffers google-benchmark mimalloc jemalloc folly; do \
 		if brew list --versions $$p >/dev/null 2>&1; then \
 			printf "  %-16s %s\n" "$$p" "$$(brew list --versions $$p)"; \
 		else \
-			printf "  %-16s MISSING (make install-industry)\n" "$$p"; \
+			printf "  %-16s MISSING (make install-industry / brew install folly)\n" "$$p"; \
 		fi; \
 	done
 	@echo "== HPX (local) =="
@@ -324,8 +329,8 @@ install-folly:
 	brew install folly
 
 install-industry:
-	brew install hwloc flatbuffers google-benchmark mimalloc
-
+	brew install hwloc flatbuffers google-benchmark mimalloc jemalloc
+	@echo "Optional: brew install folly  # enables folly::ProducerConsumerQueue tests"
 install-hpx:
 	@chmod +x scripts/install_hpx.sh
 	HPX_ROOT="$(HPX_ROOT)" ./scripts/install_hpx.sh

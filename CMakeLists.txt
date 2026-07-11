@@ -22,11 +22,16 @@ option(STACK_WITH_HWLOC        "Use hwloc for topology / pinning helpers" ON)
 option(STACK_WITH_FLATBUFFERS  "Enable FlatBuffers zero-copy serialization" ON)
 option(STACK_WITH_BENCHMARK    "Build Google Benchmark microbenchmarks" ON)
 option(STACK_WITH_MIMALLOC     "Link mimalloc for off-path allocations" ON)
+option(STACK_WITH_JEMALLOC     "Link jemalloc for off-path allocations" ON)
 option(STACK_WITH_MOODYCAMEL   "Fetch moodycamel ReaderWriterQueue" ON)
+option(STACK_WITH_STRUCT_PACK  "Fetch yalantinglibs struct_pack (header-only)" ON)
 option(STACK_WITH_LIBNUMA      "Linux: libnuma (optional)" ON)
 option(STACK_WITH_LIBURING     "Linux: liburing / io_uring (optional)" ON)
 option(STACK_WITH_HDRHISTOGRAM "Fetch HdrHistogram_c for production HDR telemetry" ON)
 option(STACK_WITH_SBE_CODEGEN  "Use Real Logic SBE generated codecs under generated/sbe" ON)
+option(STACK_WITH_DPDK         "Detect/link DPDK if installed (lab NIC)" ON)
+option(STACK_WITH_ONLOAD       "Detect OpenOnload/EF_VI headers if installed" ON)
+option(STACK_WITH_FOLLY_PCQ    "If Folly found, enable ProducerConsumerQueue tests" ON)
 
 # Optional search hints (HPX is not on Homebrew)
 set(LIB_SMOKE_HPX_ROOT "$ENV{HOME}/cpp-deps/hpx" CACHE PATH
@@ -189,6 +194,7 @@ set(_ll_public_headers
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/hdr_c.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/hdr_histogram.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/industry.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/jemalloc_util.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/kernel_bypass.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/linux_numa.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/linux_uring.hpp"
@@ -196,6 +202,7 @@ set(_ll_public_headers
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/sbe_codec.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/sbe_style.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/spsc_queue.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/struct_pack_tick.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/tsc_clock.hpp"
 )
 target_sources(ll_headers INTERFACE
@@ -361,6 +368,131 @@ if(STACK_WITH_MIMALLOC)
   endif()
 endif()
 
+# jemalloc (off critical path) — alternative to mimalloc
+set(STACK_HAS_JEMALLOC 0)
+if(STACK_WITH_JEMALLOC)
+  find_library(JEMALLOC_LIBRARY jemalloc
+    HINTS "${HOMEBREW_PREFIX}/lib" "${HOMEBREW_PREFIX}/opt/jemalloc/lib")
+  find_path(JEMALLOC_INCLUDE_DIR jemalloc/jemalloc.h
+    HINTS "${HOMEBREW_PREFIX}/include" "${HOMEBREW_PREFIX}/opt/jemalloc/include")
+  if(JEMALLOC_LIBRARY AND JEMALLOC_INCLUDE_DIR)
+    add_library(stack_jemalloc INTERFACE)
+    target_include_directories(stack_jemalloc INTERFACE "${JEMALLOC_INCLUDE_DIR}")
+    target_link_libraries(stack_jemalloc INTERFACE "${JEMALLOC_LIBRARY}")
+    target_compile_definitions(ll_headers INTERFACE LL_HAS_JEMALLOC=1)
+    set(STACK_HAS_JEMALLOC 1)
+    message(STATUS "stack: jemalloc                    = ON (${JEMALLOC_LIBRARY})")
+  else()
+    message(STATUS "stack: jemalloc                    = OFF (not found)")
+  endif()
+endif()
+
+# struct_pack (yalantinglibs) — header-only high-performance serialization
+set(STACK_HAS_STRUCT_PACK 0)
+if(STACK_WITH_STRUCT_PACK)
+  FetchContent_Declare(
+    yalantinglibs
+    GIT_REPOSITORY https://github.com/alibaba/yalantinglibs.git
+    # main tracks C++20/23/26 libc++ compatibility better than older tags
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_GetProperties(yalantinglibs)
+  if(NOT yalantinglibs_POPULATED)
+    FetchContent_Populate(yalantinglibs)
+  endif()
+  if(EXISTS "${yalantinglibs_SOURCE_DIR}/include/ylt/struct_pack.hpp")
+    add_library(stack_struct_pack INTERFACE)
+    target_include_directories(stack_struct_pack INTERFACE
+      "${yalantinglibs_SOURCE_DIR}/include"
+      "${yalantinglibs_SOURCE_DIR}/include/ylt/thirdparty"
+    )
+    # Prefer C++20 mode for this header-only path when the host is C++26 —
+    # keeps ylt detection macros happy without affecting other targets.
+    target_compile_features(stack_struct_pack INTERFACE cxx_std_20)
+    target_compile_definitions(ll_headers INTERFACE LL_HAS_STRUCT_PACK=1)
+    set(STACK_HAS_STRUCT_PACK 1)
+    message(STATUS "stack: struct_pack                 = ON (yalantinglibs FetchContent)")
+  else()
+    message(STATUS "stack: struct_pack                 = OFF (headers missing)")
+  endif()
+endif()
+
+# DPDK (optional lab) — detect installed DPDK via pkg-config or headers
+set(STACK_HAS_DPDK 0)
+if(STACK_WITH_DPDK)
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(DPDK QUIET libdpdk)
+  endif()
+  if(DPDK_FOUND)
+    add_library(stack_dpdk INTERFACE)
+    target_include_directories(stack_dpdk INTERFACE ${DPDK_INCLUDE_DIRS})
+    target_link_libraries(stack_dpdk INTERFACE ${DPDK_LIBRARIES})
+    target_compile_options(stack_dpdk INTERFACE ${DPDK_CFLAGS_OTHER})
+    target_compile_definitions(ll_headers INTERFACE LL_HAS_DPDK=1)
+    set(STACK_HAS_DPDK 1)
+    message(STATUS "stack: DPDK                        = ON (pkg-config)")
+  else()
+    find_path(DPDK_INCLUDE_DIR rte_eal.h
+      HINTS /usr/include /usr/local/include "${HOMEBREW_PREFIX}/include"
+      PATH_SUFFIXES dpdk)
+    if(DPDK_INCLUDE_DIR)
+      add_library(stack_dpdk INTERFACE)
+      target_include_directories(stack_dpdk INTERFACE "${DPDK_INCLUDE_DIR}")
+      target_compile_definitions(ll_headers INTERFACE LL_HAS_DPDK=1)
+      set(STACK_HAS_DPDK 1)
+      message(STATUS "stack: DPDK                        = ON (headers @ ${DPDK_INCLUDE_DIR})")
+    else()
+      message(STATUS "stack: DPDK                        = OFF (not installed — stub RX only)")
+    endif()
+  endif()
+endif()
+
+# OpenOnload / EF_VI (optional lab) — Solarflare headers
+set(STACK_HAS_ONLOAD 0)
+if(STACK_WITH_ONLOAD)
+  find_path(EF_VI_INCLUDE_DIR etherfabric/ef_vi.h
+    HINTS /usr/include /usr/local/include "${HOMEBREW_PREFIX}/include")
+  find_library(CIUL_LIBRARY ciul
+    HINTS /usr/lib /usr/local/lib "${HOMEBREW_PREFIX}/lib")
+  if(EF_VI_INCLUDE_DIR)
+    add_library(stack_onload INTERFACE)
+    target_include_directories(stack_onload INTERFACE "${EF_VI_INCLUDE_DIR}")
+    if(CIUL_LIBRARY)
+      target_link_libraries(stack_onload INTERFACE "${CIUL_LIBRARY}")
+    endif()
+    target_compile_definitions(ll_headers INTERFACE LL_HAS_ONLOAD=1)
+    set(STACK_HAS_ONLOAD 1)
+    message(STATUS "stack: OpenOnload/EF_VI            = ON (${EF_VI_INCLUDE_DIR})")
+  else()
+    message(STATUS "stack: OpenOnload/EF_VI            = OFF (not installed — stub RX only)")
+  endif()
+endif()
+
+# Folly ProducerConsumerQueue (optional — separate from full lib_smoke Folly profile)
+set(STACK_HAS_FOLLY_PCQ 0)
+if(STACK_WITH_FOLLY_PCQ)
+  find_package(folly CONFIG QUIET)
+  if(TARGET Folly::folly)
+    # Reuse Folly deps scrub if full Folly profile also enabled
+    if(TARGET Folly::folly_deps)
+      get_target_property(_folly_pcq_incs Folly::folly_deps INTERFACE_INCLUDE_DIRECTORIES)
+      if(_folly_pcq_incs)
+        list(FILTER _folly_pcq_incs EXCLUDE REGEX "CommandLineTools|.sdk/usr/include")
+        set_property(TARGET Folly::folly_deps PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${_folly_pcq_incs}")
+      endif()
+    endif()
+    add_library(stack_folly_pcq INTERFACE)
+    target_link_libraries(stack_folly_pcq INTERFACE Folly::folly)
+    target_compile_definitions(ll_headers INTERFACE LL_HAS_FOLLY_PCQ=1)
+    set(STACK_HAS_FOLLY_PCQ 1)
+    message(STATUS "stack: folly::PCQ                  = ON")
+  else()
+    message(STATUS "stack: folly::PCQ                  = OFF (install folly / brew install folly)")
+  endif()
+endif()
+
 # Linux-only: libnuma / liburing (soft)
 set(STACK_HAS_LIBNUMA 0)
 set(STACK_HAS_LIBURING 0)
@@ -438,6 +570,21 @@ if(STACK_HAS_FLATBUFFERS)
 endif()
 if(STACK_HAS_MIMALLOC)
   target_link_libraries(stack_industry INTERFACE stack_mimalloc)
+endif()
+if(STACK_HAS_JEMALLOC)
+  target_link_libraries(stack_industry INTERFACE stack_jemalloc)
+endif()
+if(STACK_HAS_STRUCT_PACK)
+  target_link_libraries(stack_industry INTERFACE stack_struct_pack)
+endif()
+if(STACK_HAS_DPDK)
+  target_link_libraries(stack_industry INTERFACE stack_dpdk)
+endif()
+if(STACK_HAS_ONLOAD)
+  target_link_libraries(stack_industry INTERFACE stack_onload)
+endif()
+if(STACK_HAS_FOLLY_PCQ)
+  target_link_libraries(stack_industry INTERFACE stack_folly_pcq)
 endif()
 if(STACK_HAS_LIBNUMA)
   target_link_libraries(stack_industry INTERFACE stack_numa)
@@ -574,6 +721,9 @@ target_link_libraries(example_hdr_c PRIVATE stack_industry)
 add_executable(example_kernel_bypass examples/kernel_bypass/main.cpp)
 target_link_libraries(example_kernel_bypass PRIVATE stack_industry)
 
+add_executable(example_struct_pack examples/struct_pack/main.cpp)
+target_link_libraries(example_struct_pack PRIVATE stack_industry)
+
 # Google Benchmark microbenches (optional)
 if(STACK_HAS_BENCHMARK)
   add_executable(bench_queues benchmarks/bench_queues.cpp)
@@ -615,6 +765,7 @@ message(STATUS "lib_smoke: WITH_HPX        = ${LIB_SMOKE_WITH_HPX}")
 message(STATUS "ll_headers: include/ll/*   = ON (+ sbe_gen, numa, uring, hdr_c, bypass)")
 message(STATUS "stack: industry hwloc/fb/mi/mc = ${STACK_HAS_HWLOC}/${STACK_HAS_FLATBUFFERS}/${STACK_HAS_MIMALLOC}/${STACK_HAS_MOODYCAMEL}")
 message(STATUS "stack: sbe/hdr_c/numa/uring    = ${STACK_HAS_SBE_CODEGEN}/${STACK_HAS_HDRHISTOGRAM_C}/${STACK_HAS_LIBNUMA}/${STACK_HAS_LIBURING}")
+message(STATUS "stack: je/sp/dpdk/ef/follypcq  = ${STACK_HAS_JEMALLOC}/${STACK_HAS_STRUCT_PACK}/${STACK_HAS_DPDK}/${STACK_HAS_ONLOAD}/${STACK_HAS_FOLLY_PCQ}")
 if(LIB_SMOKE_WITH_HPX)
   message(STATUS "lib_smoke: HPX root        = ${LIB_SMOKE_HPX_ROOT}")
 endif()

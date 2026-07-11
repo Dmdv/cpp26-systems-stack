@@ -42,3 +42,16 @@ TEST_CASE("folly Future then", "[folly]") {
   auto f = folly::makeFuture(21).thenValue([](int v) { return v * 2; });
   REQUIRE(std::move(f).get() == 42);
 }
+
+TEST_CASE("folly ProducerConsumerQueue spsc", "[folly][pcq]") {
+  folly::ProducerConsumerQueue<int> q(1024);
+  REQUIRE(q.write(1));
+  REQUIRE(q.write(2));
+  int a = 0;
+  int b = 0;
+  REQUIRE(q.read(a));
+  REQUIRE(q.read(b));
+  REQUIRE(a == 1);
+  REQUIRE(b == 2);
+  REQUIRE_FALSE(q.read(a));
+}

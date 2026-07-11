@@ -32,13 +32,14 @@ Tutorials: [`../tutorials/`](../tutorials/).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| **IPollModeRx** contract + stub | **SHIPPED** | `ll/kernel_bypass.hpp`, `[roadmap][bypass]` |
-| **DPDK** implementation | **GAP** (lab runbook) | `docs/tutorials/kernel-bypass-lab.md` |
-| **OpenOnload / EF_VI** implementation | **GAP** (lab runbook) | same |
+| **IPollModeRx** contract + stub | **SHIPPED** | `ll/kernel_bypass.hpp`, `[industry][bypass]` |
+| **DPDK** | **OPTIONAL detect** + lab runbook | `STACK_WITH_DPDK`; stub when absent |
+| **OpenOnload / EF_VI** | **OPTIONAL detect** + lab runbook | `STACK_WITH_ONLOAD` |
 | **liburing** | **SHIPPED** API + Linux **OPTIONAL** | `ll/linux_uring.hpp`, Linux CI |
 | **Real Logic SBE codegen** | **SHIPPED** | `schemas/sbe-*.xml`, `generated/sbe/`, `ll/sbe_codec.hpp` |
 | SBE-style POD teaching aid | **SHIPPED** | `ll/sbe_style.hpp` |
 | **FlatBuffers** | **OPTIONAL** | `schemas/tick.fbs` |
+| **struct_pack** | **SHIPPED** | yalantinglibs + `ll/struct_pack_tick.hpp` |
 | Asio / Beast / gRPC / simdjson | **SHIPPED** | library mesh |
 
 ---
@@ -50,6 +51,7 @@ Tutorials: [`../tutorials/`](../tutorials/).
 | Arena / object pool | **SHIPPED** | `ll/arena.hpp` |
 | **std::pmr** | **SHIPPED** | `ll/pmr_arena.hpp` |
 | **mimalloc** off-path | **OPTIONAL** | industry tests |
+| **jemalloc** off-path | **OPTIONAL** | `ll/jemalloc_util.hpp` |
 | False sharing / cache lines | **SHIPPED** | `ll/cache_line.hpp`, SPSC |
 
 ---
@@ -60,6 +62,7 @@ Tutorials: [`../tutorials/`](../tutorials/).
 |------|--------|----------|
 | `ll::SpscQueue` | **SHIPPED** | tests + examples |
 | Boost.Lockfree / moodycamel | **SHIPPED** / **OPTIONAL** | industry suite |
+| **folly::ProducerConsumerQueue** | **OPTIONAL** | auto if Folly present; `make folly` |
 | Memory order tutorial | **SHIPPED** | `examples/memory_order` |
 
 ---

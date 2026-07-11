@@ -109,12 +109,58 @@ class StubPollModeRx final : public IPollModeRx {
 
 [[nodiscard]] inline const char* backend_status() noexcept {
   if (dpdk_built()) {
+    return "dpdk-headers-present (implement rte_eth_rx_burst in lab)";
+  }
+  if (onload_built()) {
+    return "onload/ef_vi-headers-present (implement EF_VI RX in lab)";
+  }
+  return "stub-only (no NIC SDK linked)";
+}
+
+// Preferred RX for unit tests and default builds.
+[[nodiscard]] inline StubPollModeRx make_default_rx() { return StubPollModeRx{}; }
+
+// Factory name for logging / config.
+[[nodiscard]] inline std::string_view preferred_backend_name() noexcept {
+  if (dpdk_built()) {
     return "dpdk";
   }
   if (onload_built()) {
     return "onload";
   }
-  return "stub-only (no NIC SDK linked)";
+  return "stub";
 }
+
+// Compile-time capability flags for config banners / AUDIT checks.
+struct BypassCapabilities {
+  bool stub{true};
+  bool dpdk{false};
+  bool onload{false};
+};
+
+[[nodiscard]] inline BypassCapabilities capabilities() noexcept {
+  return BypassCapabilities{
+      .stub = true,
+      .dpdk = dpdk_built(),
+      .onload = onload_built(),
+  };
+}
+
+/*
+ * Lab integration sketch (enabled only when SDK headers are found):
+ *
+ * #if LL_HAS_DPDK
+ *   // open(): rte_eal_init, rte_eth_dev_configure, rte_eth_rx_queue_setup
+ *   // poll(): rte_eth_rx_burst → PacketView without payload copy
+ * #endif
+ *
+ * #if LL_HAS_ONLOAD
+ *   // open(): ef_driver_open, ef_pd_alloc, ef_vi_alloc_from_pd
+ *   // poll(): ef_eventq_poll / ef_vi_receive_unbundle
+ * #endif
+ *
+ * Full implementations live in desk-private overlays that link libdpdk / libciul
+ * against real NICs. This repo keeps the IPollModeRx contract + stub for CI.
+ */
 
 }  // namespace ll::bypass
