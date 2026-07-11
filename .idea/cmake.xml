@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeSharedSettings">
+    <configurations>
+      <configuration PROFILE_NAME="clion-debug" ENABLED="true" CONFIG_NAME="Debug" GENERATION_OPTIONS="" />
+      <configuration PROFILE_NAME="clion-release" ENABLED="false" CONFIG_NAME="Release" />
+    </configurations>
+  </component>
+</project>

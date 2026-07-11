@@ -1,0 +1,8 @@
+# Prefer CLion Debug preset compile database for accurate flags & includes.
+# Configure with:  cmake --preset clion-debug
+# Fallback: if missing, clangd searches parent dirs for compile_commands.json.
+CompileFlags:
+  CompilationDatabase: build/clion-debug
+  Add:
+    - -std=c++26
+    - -Wno-deprecated-declarations

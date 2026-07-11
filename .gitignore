@@ -3,8 +3,13 @@ build_*/
 build-*/
 cmake-build-*/
 compile_commands.json
+CMakeUserPresets.json
 .DS_Store
-.idea/
+# Keep shared CLion run configs + cmake profile hints; ignore the rest of .idea
+.idea/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/**
+!.idea/cmake.xml
 .vscode/
 *.o
 *.a

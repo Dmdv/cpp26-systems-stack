@@ -1,0 +1,15 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "local-clion-debug",
+      "displayName": "Local CLion Debug (edit paths)",
+      "inherits": "clion-debug",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/usr/local;/YOUR/HOME/cpp-deps/hpx",
+        "HOMEBREW_PREFIX": "/opt/homebrew",
+        "LIB_SMOKE_HPX_ROOT": "/YOUR/HOME/cpp-deps/hpx"
+      }
+    }
+  ]
+}

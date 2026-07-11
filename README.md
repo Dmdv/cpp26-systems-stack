@@ -12,10 +12,11 @@ This repository is **not** a toy “hello world” collection. It is a **buildab
 | | |
 |--|--|
 | **Language** | ISO C++26 (`CMAKE_CXX_STANDARD 26`) |
-| **Build** | CMake 3.28+ · Make wrapper |
+| **Build** | CMake 3.28+ · Make wrapper · **CMakePresets** (CLion) |
 | **Package sources** | Homebrew (base + industry) · FetchContent (`stdexec`, moodycamel) · optional HPX |
 | **Low-latency core** | `ll::*` — SPSC, arena/pmr, HDR histogram, SBE-style wire, TSC, affinity |
 | **Industry optional** | hwloc · FlatBuffers · mimalloc · Google Benchmark · Boost.Lockfree · moodycamel |
+| **IDE** | CLion: preset `clion-debug` + target `ide_index` — see [docs/clion.md](docs/clion.md) |
 | **Monorepo** | Submodule of private [`Dmdv/cpp_agents_benchmark`](https://github.com/Dmdv/cpp_agents_benchmark) as `systems_stack/` |
 
 ---
@@ -270,9 +271,16 @@ make examples
 # Queue microbenchmarks (requires google-benchmark)
 make bench
 
-# IDE / clangd
+# IDE / clangd (classic build tree)
 make compile-commands
+
+# CLion — full IntelliSense (types, completion, go-to-def)
+make clion          # cmake --preset clion-debug + compile_commands.json
+make clion-index    # build tools/ide_index.cpp (indexes all public types)
 ```
+
+**CLion:** open the repo root → enable CMake preset **`clion-debug`** → build target **`ide_index`**.  
+Details: [`docs/clion.md`](docs/clion.md) · presets: [`CMakePresets.json`](CMakePresets.json).
 
 | Make target | Effect |
 |-------------|--------|

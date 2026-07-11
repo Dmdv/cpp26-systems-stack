@@ -11,6 +11,7 @@
 	build rebuild test run smoke examples bench \
 	folly hpx full clean distclean \
 	reconfigure compile-commands \
+	clion clion-index clion-test \
 	install-folly install-hpx install-industry deps-check docs
 
 # ---------------------------------------------------------------------------
@@ -63,6 +64,11 @@ help:
 	@echo "  make install-folly  brew install folly"
 	@echo "  make install-hpx    Build/install HPX to HPX_ROOT ($(HPX_ROOT))"
 	@echo "  make install-industry  brew: hwloc flatbuffers google-benchmark mimalloc"
+	@echo ""
+	@echo "CLion / IDE"
+	@echo "  make clion          Configure clion-debug preset + compile_commands.json"
+	@echo "  make clion-index    Build ide_index (full type surface for IntelliSense)"
+	@echo "  make clion-test     ctest in build/clion-debug"
 	@echo ""
 	@echo "Docs"
 	@echo "  make docs           List library guides + blueprint + tutorials"
@@ -174,6 +180,23 @@ compile-commands: configure
 	@ln -sfn $(BUILD_DIR)/compile_commands.json compile_commands.json
 	@echo "Linked compile_commands.json -> $(BUILD_DIR)/compile_commands.json"
 
+# CLion: use CMake presets (CMakePresets.json) for a full IntelliSense model
+clion:
+	$(CMAKE) --preset clion-debug
+	@ln -sfn build/clion-debug/compile_commands.json compile_commands.json
+	@echo "CLion preset ready: build/clion-debug"
+	@echo "  Open repo in CLion → enable preset 'clion-debug' → Build target 'ide_index'"
+	@echo "  Guide: docs/clion.md"
+
+clion-index: clion
+	$(CMAKE) --build --preset ide-index -j$(JOBS)
+	@echo "ide_index built — reload CMake in CLion if types still unresolved"
+
+clion-test:
+	@test -d build/clion-debug || $(MAKE) clion
+	$(CMAKE) --build build/clion-debug -j$(JOBS)
+	cd build/clion-debug && $(CTEST) --output-on-failure -j$(JOBS)
+
 # ---------------------------------------------------------------------------
 # Clean
 # ---------------------------------------------------------------------------
@@ -240,3 +263,4 @@ docs:
 	@echo "LL audit:   docs/blueprint/AUDIT.md"
 	@echo "Industry:   docs/tutorials/industry-stack.md"
 	@echo "LL focus:   docs/blueprint/README.md"
+	@echo "CLion IDE:  docs/clion.md"

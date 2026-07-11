@@ -1,0 +1,121 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_STANDARD": "26",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "LIB_SMOKE_WITH_FOLLY": "OFF",
+        "LIB_SMOKE_WITH_HPX": "OFF",
+        "STACK_WITH_HWLOC": "ON",
+        "STACK_WITH_FLATBUFFERS": "ON",
+        "STACK_WITH_BENCHMARK": "ON",
+        "STACK_WITH_MIMALLOC": "ON",
+        "STACK_WITH_MOODYCAMEL": "ON",
+        "STACK_WITH_HDRHISTOGRAM": "ON",
+        "STACK_WITH_SBE_CODEGEN": "ON",
+        "STACK_WITH_LIBNUMA": "ON",
+        "STACK_WITH_LIBURING": "ON"
+      }
+    },
+    {
+      "name": "clion-debug",
+      "displayName": "CLion Debug (recommended)",
+      "description": "Primary CLion profile: Debug + compile_commands for full IntelliSense",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/usr/local;$env{HOME}/cpp-deps/hpx"
+      }
+    },
+    {
+      "name": "clion-release",
+      "displayName": "CLion Release",
+      "description": "Release profile for benchmarks and production-like runs",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/usr/local;$env{HOME}/cpp-deps/hpx"
+      }
+    },
+    {
+      "name": "clion-relwithdebinfo",
+      "displayName": "CLion RelWithDebInfo",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/usr/local;$env{HOME}/cpp-deps/hpx"
+      }
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_PREFIX_PATH": "/usr;/usr/local"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "default",
+      "displayName": "Default (Makefile-compatible build/)",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/usr/local;$env{HOME}/cpp-deps/hpx"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "clion-debug",
+      "configurePreset": "clion-debug",
+      "targets": ["ide_index", "lib_smoke", "test_ll_modules", "test_industry_stack", "test_roadmap_stack"]
+    },
+    {
+      "name": "clion-release",
+      "configurePreset": "clion-release"
+    },
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "ide-index",
+      "configurePreset": "clion-debug",
+      "targets": ["ide_index"]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "clion-debug",
+      "configurePreset": "clion-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

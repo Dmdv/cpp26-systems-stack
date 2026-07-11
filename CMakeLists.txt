@@ -179,11 +179,44 @@ target_include_directories(ll_headers INTERFACE
 target_compile_features(ll_headers INTERFACE cxx_std_26)
 target_link_libraries(ll_headers INTERFACE Threads::Threads)
 
+# Expose headers as a FILE_SET so CLion lists them under the ll_headers target
+# and includes them in the project model for navigation / IntelliSense.
+set(_ll_public_headers
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/affinity.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/arena.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/branch.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/cache_line.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/hdr_c.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/hdr_histogram.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/industry.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/kernel_bypass.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/linux_numa.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/linux_uring.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/pmr_arena.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/sbe_codec.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/sbe_style.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/spsc_queue.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ll/tsc_clock.hpp"
+)
+target_sources(ll_headers INTERFACE
+  FILE_SET HEADERS
+  BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  FILES ${_ll_public_headers}
+)
+
 # Real Logic SBE generated codecs (committed under generated/sbe; regenerate via scripts/generate_sbe.sh)
 set(STACK_HAS_SBE_CODEGEN 0)
 if(STACK_WITH_SBE_CODEGEN AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe/Tick.h")
   target_include_directories(ll_headers INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe"
+  )
+  target_sources(ll_headers INTERFACE
+    FILE_SET sbe_headers
+    TYPE HEADERS
+    BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe"
+    FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe/Tick.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/generated/sbe/market_sbe/MessageHeader.h"
   )
   target_compile_definitions(ll_headers INTERFACE LL_HAS_SBE_CODEGEN=1)
   set(STACK_HAS_SBE_CODEGEN 1)
@@ -549,6 +582,29 @@ if(STACK_HAS_BENCHMARK)
     target_link_libraries(bench_queues PRIVATE pthread)
   endif()
 endif()
+
+# ---------------------------------------------------------------------------
+# IDE index target (CLion / clangd) — pulls every public type into the model
+# ---------------------------------------------------------------------------
+option(STACK_BUILD_IDE_INDEX "Build ide_index TU for CLion IntelliSense" ON)
+if(STACK_BUILD_IDE_INDEX)
+  add_executable(ide_index tools/ide_index.cpp)
+  # Exclude from default `all` so `make` stays lean; CLion still sees the target.
+  set_target_properties(ide_index PROPERTIES EXCLUDE_FROM_ALL TRUE)
+  target_link_libraries(ide_index PRIVATE stack_industry smoke_deps)
+  if(STACK_HAS_FLATBUFFERS AND DEFINED STACK_FB_GEN_HEADER)
+    # Ensure flatc output is generated before indexing FB types if needed later.
+    add_custom_target(ide_index_fb_deps DEPENDS "${STACK_FB_GEN_HEADER}")
+    add_dependencies(ide_index ide_index_fb_deps)
+  endif()
+  # Help CLion treat this as a primary navigable binary.
+  set_property(TARGET ide_index PROPERTY CXX_STANDARD 26)
+  message(STATUS "stack: ide_index (CLion)           = ON (EXCLUDE_FROM_ALL)")
+endif()
+
+# Convenience: copy compile_commands into binary dir root is automatic;
+# also emit a status path CLion users can paste into clangd settings.
+message(STATUS "stack: compile_commands.json       = ${CMAKE_BINARY_DIR}/compile_commands.json")
 
 message(STATUS "lib_smoke: Homebrew prefix = ${HOMEBREW_PREFIX}")
 message(STATUS "lib_smoke: Asio include    = ${ASIO_INCLUDE_DIR}")
